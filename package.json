@@ -5,7 +5,9 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
-    "build": "tsc",
+    "build": "npx prisma generate && tsc",
+    "postinstall": "npx prisma generate",
+    "postbuild": "npx prisma migrate deploy",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "test": "jest"
