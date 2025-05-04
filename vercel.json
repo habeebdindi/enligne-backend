@@ -1,0 +1,26 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "src/index.ts",
+        "use": "@vercel/node",
+        "config": {
+          "includeFiles": ["dist/**", "prisma/**"],
+          "installCommand": "npm install && npx prisma generate"
+        }
+      }
+    ],
+    "routes": [
+      {
+        "src": "/(.*)",
+        "dest": "src/index.ts"
+      }
+    ],
+    "env": {
+      "NODE_ENV": "production"
+    },
+    "buildCommand": "npm run build",
+    "outputDirectory": "dist"
+  } 
+  
+  

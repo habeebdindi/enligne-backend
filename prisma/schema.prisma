@@ -1,0 +1,327 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for all users in the system
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  phone           String    @unique
+  fullName        String    @unique
+  password        String
+  role            Role      @default(CUSTOMER)
+  isVerified      Boolean   @default(false)
+  addresses       Address[]
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  isActive        Boolean   @default(true)
+  
+  // Relations
+  customer        Customer?
+  merchant        Merchant?
+  rider           Rider?
+  payments        Payment[]
+  notifications   Notification[]
+  reviews         Review[]
+
+  @@map("users")
+}
+
+enum Role {
+  CUSTOMER
+  RIDER
+  MERCHANT
+  ADMIN
+}
+
+// Customer profile for users with the CUSTOMER role
+model Customer {
+  id              String    @id @default(cuid())
+  userId          String    @unique @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders          Order[]
+  cart            Cart?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("customers")
+}
+
+// Merchant profile for users with the MERCHANT role
+model Merchant {
+  id              String    @id @default(cuid())
+  userId          String    @unique @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName    String    @map("business_name")
+  description     String?
+  logo            String?
+  coverImage      String?   @map("cover_image")
+  address         String
+  location        Json      // For storing latitude and longitude
+  businessPhone   String    @map("business_phone")
+  businessEmail   String?   @map("business_email")
+  openingHours    Json      @map("opening_hours") // Store hours as JSON object
+  categories      String[]  // Array of categories this merchant belongs to
+  rating          Float     @default(0)
+  isActive        Boolean   @default(true) @map("is_active")
+  isVerified      Boolean   @default(false) @map("is_verified")
+  commissionRate  Float     @default(0.15) @map("commission_rate") // 15% commission by default
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  products        Product[]
+  orders          Order[]
+  reviews         Review[]
+
+  @@map("merchants")
+}
+
+// Rider profile for users with the RIDER role
+model Rider {
+  id              String    @id @default(cuid())
+  userId          String    @unique @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isAvailable     Boolean   @default(false) @map("is_available")
+  currentLocation Json?     @map("current_location")
+  vehicleType     String    @map("vehicle_type")
+  vehicleNumber   String?   @map("vehicle_number")
+  identityDoc     String?   @map("identity_doc")
+  rating          Float     @default(0)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  deliveries      Delivery[]
+
+  @@map("riders")
+}
+
+// Address model for user addresses
+model Address {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label           String    // e.g., "Home", "Work"
+  street          String
+  city            String
+  state           String
+  postalCode      String?   @map("postal_code")
+  country         String    @default("Rwanda")
+  landmark        String?
+  instructions    String?
+  location        Json      // For storing latitude and longitude
+  isDefault       Boolean   @default(false) @map("is_default")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  orders          Order[]
+
+  @@map("addresses")
+}
+
+// Product model for items sold by merchants
+model Product {
+  id              String    @id @default(cuid())
+  merchantId      String    @map("merchant_id")
+  merchant        Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  price           Decimal   @db.Decimal(10, 2)
+  salePrice       Decimal?  @map("sale_price") @db.Decimal(10, 2)
+  images          String[]
+  category        String
+  subcategory     String?
+  isAvailable     Boolean   @default(true) @map("is_available")
+  preparationTime Int?      @map("preparation_time") // In minutes
+  stockQuantity   Int?      @map("stock_quantity")  // Null for unlimited
+  attributes      Json?     // For storing additional attributes
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+
+  @@map("products")
+}
+
+// Cart model for user shopping cart
+model Cart {
+  id              String    @id @default(cuid())
+  customerId      String    @unique @map("customer_id")
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items           CartItem[]
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("carts")
+}
+
+// CartItem model for items in a cart
+model CartItem {
+  id              String    @id @default(cuid())
+  cartId          String    @map("cart_id")
+  cart            Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId       String    @map("product_id")
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity        Int       @default(1)
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("cart_items")
+}
+
+// Order model for user orders
+model Order {
+  id              String        @id @default(cuid())
+  customerId      String        @map("customer_id")
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  merchantId      String        @map("merchant_id")
+  merchant        Merchant      @relation(fields: [merchantId], references: [id])
+  addressId       String        @map("address_id")
+  address         Address       @relation(fields: [addressId], references: [id])
+  items           OrderItem[]
+  subtotal        Decimal       @db.Decimal(10, 2)
+  deliveryFee     Decimal       @map("delivery_fee") @db.Decimal(10, 2)
+  platformFee     Decimal       @map("platform_fee") @db.Decimal(10, 2)
+  discount        Decimal       @default(0) @db.Decimal(10, 2)
+  tax             Decimal       @default(0) @db.Decimal(10, 2)
+  total           Decimal       @db.Decimal(10, 2)
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING) @map("payment_status")
+  paymentMethod   String        @map("payment_method")
+  notes           String?
+  scheduledFor    DateTime?     @map("scheduled_for")
+  estimatedDeliveryTime DateTime? @map("estimated_delivery_time")
+  delivery        Delivery?
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY_FOR_PICKUP
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+// OrderItem model for items in an order
+model OrderItem {
+  id              String    @id @default(cuid())
+  orderId         String    @map("order_id")
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String    @map("product_id")
+  product         Product   @relation(fields: [productId], references: [id])
+  name            String    // Stored at time of order to preserve history
+  price           Decimal   @db.Decimal(10, 2)
+  quantity        Int       @default(1)
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("order_items")
+}
+
+// Delivery model for order deliveries
+model Delivery {
+  id              String    @id @default(cuid())
+  orderId         String    @unique @map("order_id")
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  riderId         String?   @map("rider_id")
+  rider           Rider?    @relation(fields: [riderId], references: [id])
+  status          DeliveryStatus @default(PENDING)
+  pickupLocation  Json      @map("pickup_location")
+  dropoffLocation Json      @map("dropoff_location")
+  distance        Float     // In kilometers
+  startTime       DateTime? @map("start_time")
+  endTime         DateTime? @map("end_time")
+  trackingCode    String    @unique @map("tracking_code")
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("deliveries")
+}
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+// Payment model for order payments
+model Payment {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  user            User      @relation(fields: [userId], references: [id])
+  amount          Decimal   @db.Decimal(10, 2)
+  currency        String    @default("RWF")
+  method          String    // e.g., "Mobile Money", "Card", "Cash"
+  status          PaymentStatus @default(PENDING)
+  reference       String    @unique // Payment reference from payment provider
+  metadata        Json?     // Additional payment details
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("payments")
+}
+
+// Review model for reviews and ratings
+model Review {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchantId      String    @map("merchant_id")
+  merchant        Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  rating          Int       // 1-5 stars
+  comment         String?
+  images          String[]
+  isPublished     Boolean   @default(true) @map("is_published")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("reviews")
+}
+
+// Notification model for user notifications
+model Notification {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  message         String
+  type            String    // e.g., "Order", "Delivery", "Promotion"
+  isRead          Boolean   @default(false) @map("is_read")
+  metadata        Json?     // Additional notification data
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("notifications")
+} 
