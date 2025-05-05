@@ -1,5 +1,6 @@
 import swaggerJSDoc from 'swagger-jsdoc';
 import { version } from '../../package.json';
+import path from 'path';
 
 // Swagger definition
 const swaggerDefinition = {
@@ -24,7 +25,7 @@ const swaggerDefinition = {
       description: 'Development server',
     },
     {
-      url: 'https://api.enligne.example.com/api/v1',
+      url: 'https://enligne-backend.vercel.app/api/v1',
       description: 'Production server',
     },
   ],
@@ -170,8 +171,10 @@ const swaggerDefinition = {
 // Options for the swagger docs
 const options = {
   swaggerDefinition,
-  // Path to the API docs
-  apis: ['./src/routes/*.ts'],
+  apis: [
+    path.join(__dirname, '../routes/*.ts'),
+    path.join(__dirname, '../routes/*.js'),
+  ],
 };
 
 // Initialize swagger-jsdoc
