@@ -9,16 +9,16 @@ datasource db {
 
 // User model for all users in the system
 model User {
-  id         String    @id @default(uuid())
-  email      String    @unique
-  phone      String    @unique
-  fullName   String    @unique
+  id         String   @id @default(uuid())
+  email      String   @unique
+  phone      String   @unique
+  fullName   String   @unique
   password   String
-  role       Role      @default(CUSTOMER)
-  isVerified Boolean   @default(false)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  isActive   Boolean   @default(true)
+  role       Role     @default(CUSTOMER)
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  isActive   Boolean  @default(true)
 
   // Relations
   addresses     Address[]
@@ -205,7 +205,7 @@ model Address {
   // Relations
   orders Order[]
 
-  @@index([[city, state]])
+  @@index([city, state])
 }
 
 // Product model for items sold by merchants
@@ -222,8 +222,8 @@ model Product {
   category        Category @relation(fields: [categoryId], references: [id])
   subcategory     String?
   isAvailable     Boolean  @default(true)
-  preparationTime Int?     // In minutes
-  stockQuantity   Int?     // Null for unlimited
+  preparationTime Int? // In minutes
+  stockQuantity   Int? // Null for unlimited
   attributes      Json? // For storing additional attributes
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
