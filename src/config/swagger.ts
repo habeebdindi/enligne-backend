@@ -21,7 +21,7 @@ const swaggerDefinition = {
   },
   servers: [
     {
-      url: 'http://localhost:3000/api/v1',
+      url: 'http://localhost:5000/api/v1',
       description: 'Development server',
     },
     {
@@ -37,6 +37,22 @@ const swaggerDefinition = {
     {
       name: 'Users',
       description: 'User management endpoints',
+    },
+    {
+      name: 'Home',
+      description: 'Home page and general browsing endpoints',
+    },
+    {
+      name: 'Merchants',
+      description: 'Merchant management endpoints',
+    },
+    {
+      name: 'Orders',
+      description: 'Order management endpoints',
+    },
+    {
+      name: 'Products',
+      description: 'Product management endpoints',
     },
   ],
   components: {
@@ -79,6 +95,14 @@ const swaggerDefinition = {
             enum: ['CUSTOMER', 'MERCHANT', 'RIDER', 'ADMIN'],
             description: 'User role',
           },
+          isVerified: {
+            type: 'boolean',
+            description: 'Whether the user is verified',
+          },
+          isActive: {
+            type: 'boolean',
+            description: 'Whether the user account is active',
+          },
           createdAt: {
             type: 'string',
             format: 'date-time',
@@ -91,43 +115,181 @@ const swaggerDefinition = {
           },
         },
       },
-      Address: {
+      Merchant: {
         type: 'object',
-        required: ['street', 'city', 'state', 'country', 'postalCode'],
+        required: ['businessName', 'address', 'businessPhone'],
         properties: {
           id: {
             type: 'string',
             format: 'uuid',
-            description: 'Address ID',
+            description: 'Merchant ID',
           },
-          street: {
+          businessName: {
             type: 'string',
-            description: 'Street address',
+            description: 'Business name',
           },
-          city: {
+          description: {
             type: 'string',
-            description: 'City',
+            description: 'Business description',
           },
-          state: {
+          logo: {
             type: 'string',
-            description: 'State or province',
+            description: 'Logo URL',
           },
-          country: {
+          coverImage: {
             type: 'string',
-            description: 'Country',
+            description: 'Cover image URL',
           },
-          postalCode: {
+          address: {
             type: 'string',
-            description: 'Postal code',
+            description: 'Business address',
           },
-          isDefault: {
+          location: {
+            type: 'object',
+            properties: {
+              lat: {
+                type: 'number',
+                description: 'Latitude',
+              },
+              lng: {
+                type: 'number',
+                description: 'Longitude',
+              },
+            },
+          },
+          businessPhone: {
+            type: 'string',
+            description: 'Business phone number',
+          },
+          businessEmail: {
+            type: 'string',
+            format: 'email',
+            description: 'Business email',
+          },
+          openingHours: {
+            type: 'object',
+            description: 'Business opening hours',
+          },
+          rating: {
+            type: 'number',
+            description: 'Average rating',
+          },
+          isActive: {
             type: 'boolean',
-            description: 'Whether this is the default address',
+            description: 'Whether the merchant is active',
           },
-          userId: {
+          isVerified: {
+            type: 'boolean',
+            description: 'Whether the merchant is verified',
+          },
+          commissionRate: {
+            type: 'number',
+            description: 'Platform commission rate',
+          },
+        },
+      },
+      Category: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          id: {
             type: 'string',
             format: 'uuid',
-            description: 'ID of the user who owns this address',
+            description: 'Category ID',
+          },
+          name: {
+            type: 'string',
+            description: 'Category name',
+          },
+          description: {
+            type: 'string',
+            description: 'Category description',
+          },
+          icon: {
+            type: 'string',
+            description: 'Category icon URL',
+          },
+        },
+      },
+      Offer: {
+        type: 'object',
+        required: ['title', 'discountType', 'discountValue', 'startTime', 'endTime'],
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Offer ID',
+          },
+          title: {
+            type: 'string',
+            description: 'Offer title',
+          },
+          description: {
+            type: 'string',
+            description: 'Offer description',
+          },
+          discountType: {
+            type: 'string',
+            enum: ['PERCENTAGE', 'FIXED'],
+            description: 'Type of discount',
+          },
+          discountValue: {
+            type: 'number',
+            description: 'Discount value',
+          },
+          startTime: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Offer start time',
+          },
+          endTime: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Offer end time',
+          },
+          isActive: {
+            type: 'boolean',
+            description: 'Whether the offer is active',
+          },
+        },
+      },
+      ExploreOption: {
+        type: 'object',
+        required: ['name', 'type'],
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Explore option ID',
+          },
+          name: {
+            type: 'string',
+            description: 'Name of the location',
+          },
+          image: {
+            type: 'string',
+            description: 'Image URL',
+          },
+          description: {
+            type: 'string',
+            description: 'Location description',
+          },
+          location: {
+            type: 'object',
+            properties: {
+              lat: {
+                type: 'number',
+                description: 'Latitude',
+              },
+              lng: {
+                type: 'number',
+                description: 'Longitude',
+              },
+            },
+          },
+          type: {
+            type: 'string',
+            description: 'Type of location (e.g., Mall, Market)',
           },
         },
       },
@@ -163,6 +325,35 @@ const swaggerDefinition = {
             },
           },
         },
+      },
+      ProductDetails: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid', description: 'Product ID' },
+          name: { type: 'string', description: 'Product name' },
+          description: { type: 'string', description: 'Product description' },
+          price: { type: 'number', description: 'Product price' },
+          salePrice: { type: 'number', description: 'Sale price if discounted' },
+          images: { type: 'array', items: { type: 'string' }, description: 'Product images' },
+          category: { $ref: '#/components/schemas/Category' },
+          merchant: { $ref: '#/components/schemas/Merchant' },
+          offer: { $ref: '#/components/schemas/Offer' },
+          isFavorite: { type: 'boolean', description: 'Is product in user favorites' },
+          similarProducts: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', format: 'uuid' },
+                name: { type: 'string' },
+                price: { type: 'number' },
+                salePrice: { type: 'number' },
+                images: { type: 'array', items: { type: 'string' } }
+              }
+            },
+            description: 'Similar products in the same category'
+          }
+        }
       },
     },
   },

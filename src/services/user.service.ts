@@ -33,14 +33,27 @@ export class UserService {
   // Get user by ID
   async getUserById(id: string): Promise<User> {
     const user = await prisma.user.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        addresses: true
+      }
     });
-
     if (!user) {
       throw new ApiError(404, 'User not found');
     }
-
-    return user;
+    
+    const formattedUser = {
+      ...user,
+      addresses: user?.addresses.map((address) =>{
+        return {
+          city: address.city,
+          state: address.state,
+          street: address.street,
+          label: address.label
+        }
+      })
+    }
+    return formattedUser;
   }
 
   // Update user profile

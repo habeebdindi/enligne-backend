@@ -13,11 +13,7 @@ dotenv.config();
 // Import routes
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
-// import merchantRoutes from './routes/merchant.routes';
-// import productRoutes from './routes/product.routes';
-// import orderRoutes from './routes/order.routes';
-// import deliveryRoutes from './routes/delivery.routes';
-// import paymentRoutes from './routes/payment.routes';
+import homeRoutes from './routes/home.routes';
 
 // Import middlewares
 import { errorHandler } from './middlewares/error.middleware';
@@ -25,7 +21,7 @@ import { errorHandler } from './middlewares/error.middleware';
 // Create Express app
 const app = express();
 const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.1.0/swagger-ui.min.css";
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 // Security middlewares
 app.use(helmet({
@@ -62,11 +58,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 // API routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
-// app.use('/api/v1/merchants', merchantRoutes);
-// app.use('/api/v1/products', productRoutes);
-// app.use('/api/v1/orders', orderRoutes);
-// app.use('/api/v1/deliveries', deliveryRoutes);
-// app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/home', homeRoutes);
 
 // Serve Swagger JSON for external API documentation tools
 app.get('/swagger.json', (req, res) => {

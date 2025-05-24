@@ -111,7 +111,7 @@ export class AuthService {
         userId: newUser.id,
         label: 'Home',
         street: userData.address,
-        city: 'Kigali',
+        city: 'Bumbogo',
         state: 'Kigali',
         country: 'Rwanda',
         isDefault: true,
