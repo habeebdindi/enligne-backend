@@ -14,9 +14,12 @@ dotenv.config();
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import homeRoutes from './routes/home.routes';
+import productRoutes from './routes/product.routes';
+import orderRoutes from './routes/order.routes';
 
 // Import middlewares
 import { errorHandler } from './middlewares/error.middleware';
+import offerRoutes from './routes/offer.routes';
 
 // Create Express app
 const app = express();
@@ -59,6 +62,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/home', homeRoutes);
+app.use('/api/v1/offers', offerRoutes);
+app.use('/api/v1/products', productRoutes);
+app.use('/api/v1/orders', orderRoutes);
+
 
 // Serve Swagger JSON for external API documentation tools
 app.get('/swagger.json', (req, res) => {
