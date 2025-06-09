@@ -65,6 +65,7 @@ app.use('/api/v1/home', homeRoutes);
 app.use('/api/v1/offers', offerRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/cart', orderRoutes);
 
 
 // Serve Swagger JSON for external API documentation tools

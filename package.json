@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "nodemon src/index.ts",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "npx prisma generate && tsc",
     "postinstall": "npx prisma generate",
     "postbuild": "npx prisma migrate deploy",
@@ -37,6 +37,7 @@
     "redis": "^4.6.11",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "4.3.0",
+    "ts-node-dev": "^2.0.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {

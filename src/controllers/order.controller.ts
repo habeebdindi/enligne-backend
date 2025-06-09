@@ -28,7 +28,7 @@ export class OrderController {
       const userId = req.user?.id;
       if (!userId) return res.status(400).json({ status: 'error', message: 'userId required' });
       const cart = await this.orderService.getCart(userId);
-      res.json({ status: 'success', data: cart });
+      res.json({ status: 'success', data: cart ? cart : [] });
     } catch (error) {
       res.status(500).json({ status: 'error', message: 'Error fetching cart', error });
     }

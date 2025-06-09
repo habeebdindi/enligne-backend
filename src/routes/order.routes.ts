@@ -53,7 +53,7 @@ const orderController = new OrderController();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/cart/items', orderController.addToCart);
+router.post('/items', orderController.addToCart);
 
 /**
  * @swagger
@@ -83,7 +83,7 @@ router.post('/cart/items', orderController.addToCart);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/cart', orderController.getCart);
+router.get('/', orderController.getCart);
 
 /**
  * @swagger
@@ -167,8 +167,8 @@ router.get('/cart', orderController.getCart);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/cart/items/:id', orderController.updateCartItem);
-router.delete('/cart/items/:id', orderController.removeCartItem);
+router.put('/items/:id', orderController.updateCartItem);
+router.delete('/items/:id', orderController.removeCartItem);
 
 /**
  * @swagger
@@ -199,6 +199,6 @@ router.delete('/cart/items/:id', orderController.removeCartItem);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/cart', orderController.clearCart);
+router.delete('/', orderController.clearCart);
 
 export default router; 
