@@ -39,6 +39,6 @@ const productController = new ProductController();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/products/:id', productController.getProductDetails);
+router.get('/:id', productController.getProductDetails);
 
 export default router; 
