@@ -5,6 +5,7 @@ interface SearchParams {
   query?: string;
   category?: string;
   location?: string;
+  type?: 'merchant' | 'product' | 'category';
 }
 
 interface MerchantFilters {
@@ -50,19 +51,139 @@ export class HomeService {
   }
 
   // Search for merchants, products, etc.
-  async search({ query, category, location }: SearchParams) {
+  async search({ query, category, location, type }: SearchParams) {
+    // If no search criteria provided, return empty results instead of all merchants
+    if (!query && !category && !location) {
+      return [];
+    }
+
+    // If searching specifically for products, return products directly
+    if (type === 'product') {
+      return this.searchProducts({ query, category, location });
+    }
+
+    // If searching specifically for categories, return categories
+    if (type === 'category') {
+      return this.searchCategories({ query });
+    }
+
+    // Default: search for merchants
+    return this.searchMerchants({ query, category, location });
+  }
+
+  // Search for products specifically
+  private async searchProducts({ query, category, location }: { query?: string; category?: string; location?: string }) {
+    const where: any = {
+      isAvailable: true,
+    };
+
+    if (query && query.trim()) {
+      where.OR = [
+        { name: { contains: query.trim(), mode: 'insensitive' } },
+        { description: { contains: query.trim(), mode: 'insensitive' } },
+      ];
+    }
+
+    if (category && category.trim()) {
+      where.category = {
+        name: { contains: category.trim(), mode: 'insensitive' },
+      };
+    }
+
+    // Filter by merchant location if provided
+    if (location && location.trim()) {
+      where.merchant = {
+        address: {
+          contains: location.trim(),
+          mode: 'insensitive',
+        },
+        isActive: true,
+      };
+    } else {
+      // Ensure merchant is active even if no location filter
+      where.merchant = {
+        isActive: true,
+      };
+    }
+
+    const products = await prisma.product.findMany({
+      where,
+      include: {
+        merchant: {
+          select: {
+            id: true,
+            businessName: true,
+            logo: true,
+            address: true,
+            rating: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            icon: true,
+          },
+        },
+        Offer: {
+          where: {
+            isActive: true,
+            startTime: { lte: new Date() },
+            endTime: { gte: new Date() },
+          },
+        },
+      },
+    });
+
+    return products.map(product => ({
+      ...product,
+      offer: product.Offer?.[0] || null,
+    }));
+  }
+
+  // Search for categories specifically
+  private async searchCategories({ query }: { query?: string }) {
     const where: any = {};
 
-    if (query) {
+    if (query && query.trim()) {
       where.OR = [
-        { businessName: { contains: query, mode: 'insensitive' } },
-        { description: { contains: query, mode: 'insensitive' } },
+        { name: { contains: query.trim(), mode: 'insensitive' } },
+        { description: { contains: query.trim(), mode: 'insensitive' } },
+      ];
+    }
+
+    return prisma.category.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        icon: true,
+        _count: {
+          select: {
+            merchants: true,
+          },
+        },
+      },
+    });
+  }
+
+  // Search for merchants specifically
+  private async searchMerchants({ query, category, location }: { query?: string; category?: string; location?: string }) {
+    const where: any = {
+      isActive: true, // Only return active merchants
+    };
+
+    if (query && query.trim()) {
+      where.OR = [
+        { businessName: { contains: query.trim(), mode: 'insensitive' } },
+        { description: { contains: query.trim(), mode: 'insensitive' } },
         {
           products: {
             some: {
               OR: [
-                { name: { contains: query, mode: 'insensitive' } },
-                { description: { contains: query, mode: 'insensitive' } },
+                { name: { contains: query.trim(), mode: 'insensitive' } },
+                { description: { contains: query.trim(), mode: 'insensitive' } },
               ],
             },
           },
@@ -70,19 +191,19 @@ export class HomeService {
       ];
     }
 
-    if (category) {
+    if (category && category.trim()) {
       where.MerchantCategory = {
         some: {
           category: {
-            name: category,
+            name: { contains: category.trim(), mode: 'insensitive' },
           },
         },
       };
     }
 
-    if (location) {
+    if (location && location.trim()) {
       where.address = {
-        contains: location,
+        contains: location.trim(),
         mode: 'insensitive',
       };
     }
@@ -101,6 +222,9 @@ export class HomeService {
           },
         },
         products: {
+          where: {
+            isAvailable: true, // Only return available products
+          },
           take: 5,
           select: {
             id: true,

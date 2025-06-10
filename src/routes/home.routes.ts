@@ -84,29 +84,35 @@ router.get('/categories', homeController.getCategories);
  *         name: q
  *         schema:
  *           type: string
- *         required: true
- *         description: Search query
+ *         description: Search query (searches in business names, descriptions, and product names)
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Filter by category name
+ *       - in: query
+ *         name: location
+ *         schema:
+ *           type: string
+ *         description: Filter by location (searches in address)
  *       - in: query
  *         name: type
  *         schema:
  *           type: string
  *           enum: [merchant, product, category]
- *         description: Type of search
+ *         description: Type of search - returns merchants (default), products, or categories
  *     responses:
  *       200:
- *         description: Search results retrieved successfully
+ *         description: Search results retrieved successfully. Returns merchants by default, products when type=product, or categories when type=category
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
+ *               type: array
+ *               items:
+ *                 oneOf:
+ *                   - $ref: '#/components/schemas/Merchant'
+ *                   - $ref: '#/components/schemas/Product'
+ *                   - $ref: '#/components/schemas/Category'
  */
 router.get('/search', homeController.search);
 

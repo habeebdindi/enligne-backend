@@ -31,14 +31,20 @@ export class HomeController {
   // Search for merchants, products, etc.
   search = async (req: Request, res: Response) => {
     try {
-      const { query, category, location } = req.query;
+      const { q, category, location, type } = req.query;
+      console.log('Search params received:', { q, category, location, type });
+      
       const results = await this.homeService.search({
-        query: query as string,
+        query: q as string,
         category: category as string,
         location: location as string,
+        type: type as 'merchant' | 'product' | 'category',
       });
+      
+      console.log(`Search returned ${results.length} results`);
       res.json(results);
     } catch (error) {
+      console.error('Search error:', error);
       res.status(500).json({ message: 'Error performing search', error });
     }
   };
