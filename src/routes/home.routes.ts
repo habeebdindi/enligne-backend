@@ -295,6 +295,7 @@ router.get('/recommendations', authenticate, homeController.getRecommendations);
  *         description: Unauthorized
  *       404:
  *         description: Merchant not found
+ * /home/favorites/{id}:
  *   delete:
  *     summary: Remove merchant from favorites
  *     tags: [Home]
