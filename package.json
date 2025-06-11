@@ -12,6 +12,7 @@
     "migrate:dev": "dotenv -e .env.local -- prisma migrate dev",
     "migrate:deploy": "dotenv -e .env -- npx prisma migrate deploy",
     "prisma:seed": "dotenv -e .env.local -- npx ts-node src/seed.ts",
+    "prisma:cleanup": "dotenv -e .env.local -- npx ts-node src/cleanup.ts",
     "test": "jest"
   },
   "keywords": [

@@ -238,6 +238,32 @@ async function main() {
         stockQuantity: 100,
       },
     }),
+    prisma.product.create({
+      data: {
+        merchantId: merchants[0].id,
+        name: 'Coca Cola',
+        description: 'Coca Cola 500ml',
+        price: 1000,
+        images: ['coca.jpg'],
+        categoryId: categories[0].id,
+        isAvailable: true,
+        preparationTime: 10,
+        stockQuantity: 100,
+      },
+    }),
+    prisma.product.create({
+      data: {
+        merchantId: merchants[0].id,
+        name: 'Beer',
+        description: 'Beer 500ml',
+        price: 1000,
+        images: ['beer.jpg'],
+        categoryId: categories[0].id,
+        isAvailable: true,
+        preparationTime: 10,
+        stockQuantity: 100,
+      },
+    }),
   ]);
 
   // Create products for second merchant (Pharmacy)
@@ -266,6 +292,18 @@ async function main() {
         stockQuantity: 150,
       },
     }),
+    prisma.product.create({
+      data: {
+        merchantId: merchants[1].id,
+        name: 'Paracetamol 500mg',
+        description: 'Pain relief tablets',
+        price: 1000,
+        images: ['paracetamol.jpg'],
+        categoryId: categories[1].id,
+        isAvailable: true,
+        stockQuantity: 100,
+      },
+    }),
   ]);
 
   // Create offers
@@ -277,7 +315,7 @@ async function main() {
         discountType: OfferType.PERCENTAGE,
         discountValue: 20,
         startTime: new Date(),
-        endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        endTime: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000), // 31 days from now
         merchantId: merchants[0].id,
         isActive: true,
       },
@@ -289,7 +327,7 @@ async function main() {
         discountType: OfferType.FIXED,
         discountValue: 1000,
         startTime: new Date(),
-        endTime: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
+        endTime: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000), // 31 days from now
         merchantId: merchants[1].id,
         productId: pharmacyProducts[0].id,
         isActive: true,
@@ -329,6 +367,7 @@ async function main() {
 
   // Create sample orders
   const orders = await Promise.all([
+    // Order 1: Delivered restaurant order
     prisma.order.create({
       data: {
         customerId: customers[0].id,
@@ -367,6 +406,162 @@ async function main() {
             startTime: new Date(Date.now() - 2 * 60 * 60 * 1000),
             endTime: new Date(Date.now() - 1 * 60 * 60 * 1000),
             trackingCode: 'TRK001',
+          },
+        },
+      },
+    }),
+
+    // Order 2: Pending pharmacy order
+    prisma.order.create({
+      data: {
+        customerId: customers[0].id,
+        merchantId: merchants[1].id,
+        addressId: addresses[0].id,
+        subtotal: 3500,
+        deliveryFee: 800,
+        platformFee: 300,
+        total: 4600,
+        status: OrderStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'Card',
+        items: {
+          create: [
+            {
+              productId: pharmacyProducts[0].id,
+              name: pharmacyProducts[0].name,
+              price: pharmacyProducts[0].price,
+              quantity: 2,
+            },
+            {
+              productId: pharmacyProducts[1].id,
+              name: pharmacyProducts[1].name,
+              price: pharmacyProducts[1].price,
+              quantity: 1,
+            },
+          ],
+        },
+      },
+    }),
+
+    // Order 3: Confirmed restaurant order
+    prisma.order.create({
+      data: {
+        customerId: customers[1].id,
+        merchantId: merchants[0].id,
+        addressId: addresses[1].id,
+        subtotal: 10000,
+        deliveryFee: 1200,
+        platformFee: 600,
+        total: 11800,
+        status: OrderStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.PAID,
+        paymentMethod: 'Mobile Money',
+        estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000), // 45 minutes from now
+        items: {
+          create: [
+            {
+              productId: restaurantProducts[0].id,
+              name: restaurantProducts[0].name,
+              price: restaurantProducts[0].price,
+              quantity: 2,
+            },
+          ],
+        },
+        delivery: {
+          create: {
+            riderId: riders[1].id,
+            status: DeliveryStatus.ASSIGNED,
+            pickupLocation: merchants[0].location as { lat: number; lng: number },
+            dropoffLocation: addresses[1].location as { lat: number; lng: number },
+            distance: 3.2,
+            trackingCode: 'TRK002',
+          },
+        },
+      },
+    }),
+
+    // Order 4: Delivered pharmacy order
+    prisma.order.create({
+      data: {
+        customerId: customers[1].id,
+        merchantId: merchants[1].id,
+        addressId: addresses[1].id,
+        subtotal: 5000,
+        deliveryFee: 1000,
+        platformFee: 400,
+        discount: 500, // Applied discount
+        total: 5900,
+        status: OrderStatus.DELIVERED,
+        paymentStatus: PaymentStatus.PAID,
+        paymentMethod: 'Cash',
+        items: {
+          create: [
+            {
+              productId: pharmacyProducts[1].id,
+              name: pharmacyProducts[1].name,
+              price: pharmacyProducts[1].price,
+              quantity: 2,
+            },
+          ],
+        },
+        delivery: {
+          create: {
+            riderId: riders[0].id,
+            status: DeliveryStatus.DELIVERED,
+            pickupLocation: merchants[1].location as { lat: number; lng: number },
+            dropoffLocation: addresses[1].location as { lat: number; lng: number },
+            distance: 1.8,
+            startTime: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
+            endTime: new Date(Date.now() - 3.5 * 60 * 60 * 1000), // 3.5 hours ago
+            trackingCode: 'TRK003',
+          },
+        },
+      },
+    }),
+
+    // Order 5: In transit restaurant order
+    prisma.order.create({
+      data: {
+        customerId: customers[0].id,
+        merchantId: merchants[0].id,
+        addressId: addresses[0].id,
+        subtotal: 12000,
+        deliveryFee: 1500,
+        platformFee: 700,
+        tax: 200,
+        total: 14400,
+        status: OrderStatus.IN_TRANSIT,
+        paymentStatus: PaymentStatus.PAID,
+        paymentMethod: 'Mobile Money',
+        estimatedDeliveryTime: new Date(Date.now() + 20 * 60 * 1000), // 20 minutes from now
+        notes: 'Please call when you arrive',
+        items: {
+          create: [
+            {
+              productId: restaurantProducts[0].id,
+              name: restaurantProducts[0].name,
+              price: restaurantProducts[0].price,
+              quantity: 1,
+            },
+            {
+              productId: restaurantProducts[1].id,
+              name: restaurantProducts[1].name,
+              price: restaurantProducts[1].price,
+              quantity: 3,
+              notes: 'Extra crispy please',
+            },
+          ],
+        },
+        delivery: {
+          create: {
+            riderId: riders[1].id,
+            status: DeliveryStatus.IN_TRANSIT,
+            pickupLocation: merchants[0].location as { lat: number; lng: number },
+            dropoffLocation: addresses[0].location as { lat: number; lng: number },
+            distance: 4.1,
+            startTime: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+            trackingCode: 'TRK004',
+            notes: 'Traffic delay expected',
           },
         },
       },

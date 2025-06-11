@@ -128,10 +128,28 @@ export class HomeController {
   removeFromFavorites = async (req: Request, res: Response) => {
     try {
       const userId = req.user?.id;
-      const { id } = req.params;
-      await this.homeService.removeFromFavorites(userId as string, id);
+      const { id: merchantId } = req.params;
+      
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+      
+      if (!merchantId) {
+        return res.status(400).json({ message: 'Merchant ID is required' });
+      }
+      
+      await this.homeService.removeFromFavorites(userId as string, merchantId);
       res.json({ message: 'Removed from favorites' });
-    } catch (error) {
+    } catch (error: any) {
+      // Handle Prisma P2025 error specifically
+      if (error.code === 'P2025') {
+        return res.status(404).json({ 
+          message: 'Favorite not found or already removed',
+          error: 'The merchant is not in your favorites list'
+        });
+      }
+      
+      console.error('Error removing from favorites:', error);
       res.status(500).json({ message: 'Error removing from favorites', error });
     }
   };

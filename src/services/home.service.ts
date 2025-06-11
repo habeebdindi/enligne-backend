@@ -520,11 +520,13 @@ export class HomeService {
   }
 
   // Remove from favorites
-  async removeFromFavorites(userId: string, id: string) {
+  async removeFromFavorites(userId: string, merchantId: string) {
     return prisma.favorite.delete({
       where: {
-        id,
-        userId,
+        userId_merchantId: {
+          userId,
+          merchantId,
+        },
       },
     });
   }

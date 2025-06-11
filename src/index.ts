@@ -20,6 +20,7 @@ import orderRoutes from './routes/order.routes';
 // Import middlewares
 import { errorHandler } from './middlewares/error.middleware';
 import offerRoutes from './routes/offer.routes';
+import { notificationRoutes } from './routes/notification.routes';
 
 // Create Express app
 const app = express();
@@ -66,7 +67,7 @@ app.use('/api/v1/offers', offerRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/cart', orderRoutes);
-
+app.use('/api/v1/notifications', notificationRoutes);
 
 // Serve Swagger JSON for external API documentation tools
 app.get('/swagger.json', (req, res) => {
