@@ -9,13 +9,45 @@ export class OrderController {
         try {
             const userId = req.user?.id;
             const { productId, quantity, notes } = req.body;
+  
+            
             if (!userId || !productId) {
                 return res.status(400).json({ status: 'error', message: 'userId and productId are required' });
             }
+            
             const cart = await this.orderService.addToCart(userId, productId, quantity, notes);
             res.json({ status: 'success', data: cart });
-        } catch (error) {
-            res.status(500).json({ status: 'error', message: 'Error adding to cart', error });
+        } catch (error: any) {
+            console.error('Error in addToCart controller:', error);
+            
+            // More specific error handling
+            if (error.message === 'Customer profile not found') {
+                return res.status(400).json({ 
+                    status: 'error', 
+                    message: 'Customer profile not found. Please complete your profile setup.' 
+                });
+            }
+            
+            if (error.code === 'P2025') {
+                return res.status(400).json({ 
+                    status: 'error', 
+                    message: 'Product not found or no longer available' 
+                });
+            }
+            
+            if (error.code === 'P2003') {
+                return res.status(400).json({ 
+                    status: 'error', 
+                    message: 'Invalid product reference' 
+                });
+            }
+            
+            res.status(500).json({ 
+                status: 'error', 
+                message: 'Error adding to cart', 
+                error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+                details: process.env.NODE_ENV === 'development' ? error : undefined
+            });
         }
     };
 

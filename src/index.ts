@@ -16,6 +16,7 @@ import userRoutes from './routes/user.routes';
 import homeRoutes from './routes/home.routes';
 import productRoutes from './routes/product.routes';
 import orderRoutes from './routes/order.routes';
+import cartRouter from './routes/cart.routes';
 
 // Import middlewares
 import { errorHandler } from './middlewares/error.middleware';
@@ -63,10 +64,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/home', homeRoutes);
-app.use('/api/v1/offers', offerRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/orders', orderRoutes);
-app.use('/api/v1/cart', orderRoutes);
+app.use('/api/v1/cart', cartRouter);
+app.use('/api/v1/offers', offerRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 
 // Serve Swagger JSON for external API documentation tools
