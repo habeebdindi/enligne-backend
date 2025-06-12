@@ -16,6 +16,6 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true
   },
-  "include": ["src/**/*", "prisma/**/*", "prisma/seed.ts"],
+  "include": ["src/**/*", "prisma/**/*", "prisma/seed.ts", "src/seed.ts", "src/cleanup.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 } 

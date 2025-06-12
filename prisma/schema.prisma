@@ -83,7 +83,7 @@ model Merchant {
   MerchantCategory MerchantCategory[]
   Favorite         Favorite[]
   Offer            Offer[]
-a
+
   @@index([businessName])
   @@index([isActive])
   @@index([isVerified])

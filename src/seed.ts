@@ -378,7 +378,7 @@ async function main() {
         total: 8500,
         status: OrderStatus.DELIVERED,
         paymentStatus: PaymentStatus.PAID,
-        paymentMethod: 'Mobile Money',
+        paymentMethod: 'MOMO_PAY',
         items: {
           create: [
             {
@@ -422,7 +422,7 @@ async function main() {
         total: 4600,
         status: OrderStatus.PENDING,
         paymentStatus: PaymentStatus.PENDING,
-        paymentMethod: 'Card',
+        paymentMethod: 'CARD',
         items: {
           create: [
             {
@@ -454,7 +454,7 @@ async function main() {
         total: 11800,
         status: OrderStatus.CONFIRMED,
         paymentStatus: PaymentStatus.PAID,
-        paymentMethod: 'Mobile Money',
+        paymentMethod: 'MOMO_PAY',
         estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000), // 45 minutes from now
         items: {
           create: [
@@ -492,7 +492,7 @@ async function main() {
         total: 5900,
         status: OrderStatus.DELIVERED,
         paymentStatus: PaymentStatus.PAID,
-        paymentMethod: 'Cash',
+        paymentMethod: 'CASH',
         items: {
           create: [
             {
@@ -531,7 +531,7 @@ async function main() {
         total: 14400,
         status: OrderStatus.IN_TRANSIT,
         paymentStatus: PaymentStatus.PAID,
-        paymentMethod: 'Mobile Money',
+        paymentMethod: 'MOMO_PAY',
         estimatedDeliveryTime: new Date(Date.now() + 20 * 60 * 1000), // 20 minutes from now
         notes: 'Please call when you arrive',
         items: {
