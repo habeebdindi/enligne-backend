@@ -238,6 +238,7 @@ model Product {
   cartItems  CartItem[]
   orderItems OrderItem[]
   Offer      Offer[]
+  reviews    Review[]
 
   @@index([merchantId])
   @@index([categoryId])
@@ -394,8 +395,10 @@ model Review {
   id          String   @id @default(uuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  merchantId  String
-  merchant    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId  String?
+  merchant    Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
   rating      Int // 1-5 stars
   comment     String?
   images      String[]
@@ -405,6 +408,7 @@ model Review {
 
   @@index([userId])
   @@index([merchantId])
+  @@index([productId])
   @@index([rating])
   @@index([isPublished])
   @@index([createdAt])

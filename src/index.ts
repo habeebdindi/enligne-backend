@@ -17,6 +17,7 @@ import homeRoutes from './routes/home.routes';
 import productRoutes from './routes/product.routes';
 import orderRoutes from './routes/order.routes';
 import cartRouter from './routes/cart.routes';
+import reviewRoutes from './routes/review.routes';
 
 // Import middlewares
 import { errorHandler } from './middlewares/error.middleware';
@@ -69,6 +70,7 @@ app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/cart', cartRouter);
 app.use('/api/v1/offers', offerRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
 
 // Serve Swagger JSON for external API documentation tools
 app.get('/swagger.json', (req, res) => {
