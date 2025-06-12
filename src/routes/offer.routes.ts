@@ -38,7 +38,7 @@ const offerController = new OfferController();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/offers', offerController.getOffers);
+router.get('/', offerController.getOffers);
 
 /**
  * @swagger
@@ -74,6 +74,6 @@ router.get('/offers', offerController.getOffers);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/offers/:id', offerController.getOfferDetails);
+router.get('/:id', offerController.getOfferDetails);
 
 export default router; 
