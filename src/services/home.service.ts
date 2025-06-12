@@ -257,7 +257,7 @@ export class HomeService {
       where.MerchantCategory = {
         some: {
           category: {
-            name: category,
+            id: category,
           },
         },
       };

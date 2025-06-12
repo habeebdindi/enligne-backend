@@ -1,7 +1,6 @@
-import { PrismaClient, Role, OrderStatus, PaymentStatus, DeliveryStatus, OfferType } from '@prisma/client';
+import { Role, OrderStatus, PaymentStatus, DeliveryStatus, OfferType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
+import prisma from './lib/prisma';
 
 async function main() {
   // Clean up existing data

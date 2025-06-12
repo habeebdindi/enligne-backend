@@ -89,7 +89,8 @@ router.get('/categories', homeController.getCategories);
  *         name: category
  *         schema:
  *           type: string
- *         description: Filter by category name
+ *           format: uuid
+ *         description: Filter by category ID
  *       - in: query
  *         name: location
  *         schema:
@@ -127,6 +128,7 @@ router.get('/search', homeController.search);
  *         name: category
  *         schema:
  *           type: string
+ *           format: uuid
  *         description: Filter by category ID
  *       - in: query
  *         name: rating
@@ -136,8 +138,15 @@ router.get('/search', homeController.search);
  *       - in: query
  *         name: isVerified
  *         schema:
- *           type: boolean
- *         description: Filter by verification status
+ *           type: string
+ *           enum: [rating, name]
+ *         description: Sort merchants by rating (desc) or name (asc)
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *           enum: [offers]
+ *         description: Filter merchants (currently supports 'offers' for merchants with active offers)
  *     responses:
  *       200:
  *         description: List of merchants retrieved successfully

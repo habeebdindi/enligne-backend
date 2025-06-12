@@ -83,7 +83,7 @@ model Merchant {
   MerchantCategory MerchantCategory[]
   Favorite         Favorite[]
   Offer            Offer[]
-
+a
   @@index([businessName])
   @@index([isActive])
   @@index([isVerified])
@@ -152,6 +152,12 @@ model Offer {
 enum OfferType {
   PERCENTAGE
   FIXED
+}
+
+enum PaymentMethod {
+  CARD
+  CASH
+  MOMO_PAY
 }
 
 // Explore options (e.g., malls, markets)
@@ -282,7 +288,7 @@ model Order {
   total                 Decimal       @db.Decimal(10, 2)
   status                OrderStatus   @default(PENDING)
   paymentStatus         PaymentStatus @default(PENDING)
-  paymentMethod         String
+  paymentMethod         PaymentMethod
   notes                 String?
   scheduledFor          DateTime?
   estimatedDeliveryTime DateTime?

@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from './lib/prisma';
 
 async function cleanup() {
   console.log('🗑️  Starting database cleanup...');

@@ -46,6 +46,7 @@ export class UserService {
       ...user,
       addresses: user?.addresses.map((address) =>{
         return {
+          id: address.id,
           city: address.city,
           state: address.state,
           street: address.street,

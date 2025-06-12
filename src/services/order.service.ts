@@ -1,4 +1,14 @@
 import prisma from '../lib/prisma';
+import { OrderStatus, PaymentStatus } from '@prisma/client';
+
+type PaymentMethod = 'CARD' | 'CASH' | 'MOMO_PAY';
+
+interface CreateOrderInput {
+  addressId: string;
+  paymentMethod: PaymentMethod;
+  notes?: string;
+  scheduledFor?: Date;
+}
 
 export class OrderService {
   async addToCart(userId: string, productId: string, quantity: number = 1, notes?: string) {
@@ -91,5 +101,309 @@ export class OrderService {
     if (!cart) throw new Error('Cart not found');
     await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
     return { success: true };
+  }
+
+  async createOrder(userId: string, orderData: CreateOrderInput) {
+    const { addressId, paymentMethod, notes, scheduledFor } = orderData;
+    
+    // Find the customer profile
+    const customer = await prisma.customer.findUnique({ where: { userId } });
+    if (!customer) throw new Error('Customer profile not found');
+
+    // Get the user's cart
+    const cart = await prisma.cart.findUnique({
+      where: { customerId: customer.id },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                merchant: {
+                  include: {
+                    user: {
+                      select: {
+                        fullName: true,
+                        phone: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!cart || cart.items.length === 0) {
+      throw new Error('Cart is empty');
+    }
+
+    // Validate address belongs to user
+    const address = await prisma.address.findFirst({
+      where: { id: addressId, userId }
+    });
+    if (!address) {
+      throw new Error('Address not found or does not belong to user');
+    }
+
+    // Group cart items by merchant
+    const itemsByMerchant = cart.items.reduce((acc, item) => {
+      const merchantId = item.product.merchantId;
+      if (!acc[merchantId]) {
+        acc[merchantId] = [];
+      }
+      acc[merchantId].push(item);
+      return acc;
+    }, {} as Record<string, typeof cart.items>);
+
+    const createdOrders = [];
+
+    // Create separate order for each merchant
+    for (const [merchantId, items] of Object.entries(itemsByMerchant)) {
+      // Calculate totals for this merchant's items
+      const subtotal = items.reduce((total, item) => {
+        return total + (Number(item.product.salePrice) || Number(item.product.price)) * item.quantity;
+      }, 0);
+
+      const deliveryFee = 5.00; // Fixed delivery fee per merchant
+      const platformFee = subtotal * 0.05; // 5% platform fee
+      const tax = subtotal * 0.18; // 18% VAT
+      const total = subtotal + deliveryFee + platformFee + tax;
+
+      // Create order for this merchant
+      const order = await prisma.order.create({
+        data: {
+          customerId: customer.id,
+          merchantId,
+          addressId,
+          subtotal,
+          deliveryFee,
+          platformFee,
+          tax,
+          total,
+          paymentMethod,
+          notes,
+          scheduledFor,
+          status: OrderStatus.PENDING,
+          paymentStatus: PaymentStatus.PENDING,
+          items: {
+            create: items.map(item => ({
+              productId: item.productId,
+              name: item.product.name,
+              price: Number(item.product.salePrice) || Number(item.product.price),
+              quantity: item.quantity,
+              notes: item.notes
+            }))
+          }
+        },
+        include: {
+          items: {
+            include: {
+              product: true
+            }
+          },
+          address: true,
+          merchant: {
+            include: {
+              user: {
+                select: {
+                  fullName: true,
+                  phone: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Create a notification for each order
+      await prisma.notification.create({
+        data: {
+          userId,
+          title: 'Order Placed Successfully',
+          message: `Your order #${order.id.slice(-8)} from ${order.merchant.user.fullName} has been placed successfully. Total: RWF ${total.toFixed(2)}`,
+          type: 'ORDER',
+          metadata: {
+            orderId: order.id,
+            orderTotal: total,
+            merchantName: order.merchant.user.fullName,
+            itemCount: items.length
+          }
+        }
+      });
+
+      createdOrders.push(order);
+    }
+
+    // Clear the cart after successful order creation
+    await prisma.cartItem.deleteMany({
+      where: { cartId: cart.id }
+    });
+
+    // If only one merchant, return single order; otherwise return array
+    return createdOrders.length === 1 ? createdOrders[0] : {
+      orders: createdOrders,
+      summary: {
+        totalOrders: createdOrders.length,
+        totalAmount: createdOrders.reduce((sum, order) => sum + Number(order.total), 0),
+        merchants: createdOrders.map(order => order.merchant.user.fullName)
+      }
+    };
+  }
+
+  async getOrders(userId: string, page: number = 1, limit: number = 10) {
+    const customer = await prisma.customer.findUnique({ where: { userId } });
+    if (!customer) throw new Error('Customer profile not found');
+
+    const skip = (page - 1) * limit;
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where: { customerId: customer.id },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  images: true
+                }
+              }
+            }
+          },
+          address: true,
+          merchant: {
+            include: {
+              user: {
+                select: {
+                  fullName: true
+                }
+              }
+            }
+          },
+          delivery: true
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.order.count({
+        where: { customerId: customer.id }
+      })
+    ]);
+
+    return {
+      orders,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+
+  async getOrderById(userId: string, orderId: string) {
+    const customer = await prisma.customer.findUnique({ where: { userId } });
+    if (!customer) throw new Error('Customer profile not found');
+
+    const order = await prisma.order.findFirst({
+      where: { 
+        id: orderId,
+        customerId: customer.id 
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                images: true,
+                price: true,
+                salePrice: true
+              }
+            }
+          }
+        },
+        address: true,
+        merchant: {
+          include: {
+            user: {
+              select: {
+                fullName: true,
+                phone: true
+              }
+            }
+          }
+        },
+        delivery: {
+          include: {
+            rider: {
+              include: {
+                user: {
+                  select: {
+                    fullName: true,
+                    phone: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    return order;
+  }
+
+  async updateOrderStatus(userId: string, orderId: string, status: OrderStatus) {
+    const customer = await prisma.customer.findUnique({ where: { userId } });
+    if (!customer) throw new Error('Customer profile not found');
+
+    const order = await prisma.order.findFirst({
+      where: { 
+        id: orderId,
+        customerId: customer.id 
+      }
+    });
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    // Only allow certain status transitions for customers
+    const allowedCustomerStatuses: OrderStatus[] = [OrderStatus.CANCELLED];
+    if (!allowedCustomerStatuses.includes(status)) {
+      throw new Error('Status update not allowed');
+    }
+
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: { status },
+      include: {
+        items: true,
+        address: true,
+        merchant: {
+          include: {
+            user: {
+              select: {
+                fullName: true,
+                phone: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return updatedOrder;
   }
 } 
