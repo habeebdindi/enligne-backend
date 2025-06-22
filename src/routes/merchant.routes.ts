@@ -11,10 +11,13 @@ import {
   createProduct,
   updateProduct,
   updateProductAvailability,
-  deleteProduct
+  deleteProduct,
+  getOrders,
+  getOrderDetails,
+  updateOrderStatus
 } from '../controllers/merchant.controller';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
-import { validateUpdateProfile, validateUpdateOnlineStatus } from '../validators/merchant.validator';
+import { validateUpdateProfile, validateUpdateOnlineStatus, validateUpdateOrderStatus } from '../validators/merchant.validator';
 import { validateCreateProduct, validateUpdateProduct, validateUpdateProductAvailability } from '../validators/product.validator';
 import { Role } from '@prisma/client';
 
@@ -845,5 +848,257 @@ router.put('/products/:id', validateUpdateProduct, updateProduct);
  *         description: Product not found
  */
 router.delete('/products/:id', deleteProduct);
+
+/**
+ * @swagger
+ * /merchants/orders:
+ *   get:
+ *     summary: Get all orders for merchant
+ *     description: Retrieve all orders with customer details, items, and filtering by status
+ *     tags: [Merchants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [PENDING, CONFIRMED, PREPARING, READY_FOR_PICKUP, PICKED_UP, IN_TRANSIT, DELIVERED, CANCELLED, REFUNDED]
+ *         description: Filter orders by status (optional)
+ *     responses:
+ *       200:
+ *         description: Orders retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     orders:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             example: order-uuid
+ *                           orderId:
+ *                             type: string
+ *                             example: ORDER1234
+ *                             description: Shortened order ID for display
+ *                           price:
+ *                             type: number
+ *                             example: 5000
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                             example: 2024-01-15T10:30:00Z
+ *                           customerName:
+ *                             type: string
+ *                             example: John Doe
+ *                           customerPhone:
+ *                             type: string
+ *                             example: +250788123456
+ *                           customerAddress:
+ *                             type: string
+ *                             example: 123 Main Street, Kigali, Rwanda
+ *                           status:
+ *                             type: string
+ *                             example: PENDING
+ *                             enum: [PENDING, CONFIRMED, PREPARING, READY_FOR_PICKUP, PICKED_UP, IN_TRANSIT, DELIVERED, CANCELLED, REFUNDED]
+ *                           items:
+ *                             type: array
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 id:
+ *                                   type: string
+ *                                 productName:
+ *                                   type: string
+ *                                   example: Pizza Margherita
+ *                                 quantity:
+ *                                   type: number
+ *                                   example: 2
+ *                                 price:
+ *                                   type: number
+ *                                   example: 2500
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not a merchant
+ *       404:
+ *         description: Merchant profile not found
+ */
+router.get('/orders', getOrders);
+
+/**
+ * @swagger
+ * /merchants/orders/{id}:
+ *   get:
+ *     summary: Get order details
+ *     description: Retrieve detailed information about a specific order including customer details, items, and payment information
+ *     tags: [Merchants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     responses:
+ *       200:
+ *         description: Order details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     order:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           example: order-uuid
+ *                         orderId:
+ *                           type: string
+ *                           example: ORDER1234
+ *                           description: Shortened order ID for display
+ *                         customerName:
+ *                           type: string
+ *                           example: John Doe
+ *                         customerPhone:
+ *                           type: string
+ *                           example: +250788123456
+ *                         customerAddress:
+ *                           type: string
+ *                           example: 123 Main Street, Kigali, Rwanda
+ *                         status:
+ *                           type: string
+ *                           example: PENDING
+ *                           enum: [PENDING, CONFIRMED, PREPARING, READY_FOR_PICKUP, PICKED_UP, IN_TRANSIT, DELIVERED, CANCELLED, REFUNDED]
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                           example: 2024-01-15T10:30:00Z
+ *                         items:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                               productName:
+ *                                 type: string
+ *                                 example: Pizza Margherita
+ *                               quantity:
+ *                                 type: number
+ *                                 example: 2
+ *                               price:
+ *                                 type: number
+ *                                 example: 2500
+ *                         paymentMethod:
+ *                           type: string
+ *                           example: MOMO_PAY
+ *                           enum: [CARD, CASH, MOMO_PAY]
+ *                         paymentStatus:
+ *                           type: string
+ *                           example: PAID
+ *                           enum: [PENDING, PAID, FAILED, REFUNDED, PARTIALLY_REFUNDED]
+ *                         total:
+ *                           type: number
+ *                           example: 5000
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not a merchant
+ *       404:
+ *         description: Order not found
+ */
+router.get('/orders/:id', getOrderDetails);
+
+/**
+ * @swagger
+ * /merchants/orders/{id}/status:
+ *   put:
+ *     summary: Update order status
+ *     description: Update the status of an order (e.g., PREPARING, READY_FOR_PICKUP, CANCELLED)
+ *     tags: [Merchants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [PENDING, CONFIRMED, PREPARING, READY_FOR_PICKUP, PICKED_UP, IN_TRANSIT, DELIVERED, CANCELLED, REFUNDED]
+ *                 example: PREPARING
+ *                 description: New order status
+ *     responses:
+ *       200:
+ *         description: Order status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Order status updated to PREPARING
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     order:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         orderId:
+ *                           type: string
+ *                           example: ORDER1234
+ *                         status:
+ *                           type: string
+ *                           example: PREPARING
+ *                         customerName:
+ *                           type: string
+ *                           example: John Doe
+ *       400:
+ *         description: Bad request - invalid status
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not a merchant
+ *       404:
+ *         description: Order not found
+ */
+router.put('/orders/:id/status', validateUpdateOrderStatus, updateOrderStatus);
 
 export default router; 

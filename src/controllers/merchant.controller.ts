@@ -242,4 +242,51 @@ export const deleteProduct = asyncHandler(async (req: Request, res: Response) =>
     status: 'success',
     message: 'Product deleted successfully'
   });
+});
+
+// Get all orders for merchant
+export const getOrders = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const { status } = req.query;
+  
+  const orders = await merchantService.getOrders(userId, status as string);
+  
+  res.status(200).json({
+    status: 'success',
+    data: {
+      orders
+    }
+  });
+});
+
+// Get order details
+export const getOrderDetails = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const orderId = req.params.id;
+  
+  const orderDetails = await merchantService.getOrderDetails(userId, orderId);
+  
+  res.status(200).json({
+    status: 'success',
+    data: {
+      order: orderDetails
+    }
+  });
+});
+
+// Update order status
+export const updateOrderStatus = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const orderId = req.params.id;
+  const { status } = req.body;
+  
+  const updatedOrder = await merchantService.updateOrderStatus(userId, orderId, status);
+  
+  res.status(200).json({
+    status: 'success',
+    message: `Order status updated to ${status}`,
+    data: {
+      order: updatedOrder
+    }
+  });
 }); 

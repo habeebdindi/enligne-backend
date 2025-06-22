@@ -94,6 +94,45 @@ interface UpdateOnlineStatusInput {
   isActive: boolean;
 }
 
+interface MerchantOrder {
+  id: string;
+  orderId: string; // Shortened version
+  price: number;
+  createdAt: Date;
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  status: string;
+  items: OrderItem[];
+}
+
+interface OrderItem {
+  id: string;
+  productName: string;
+  quantity: number;
+  price: number;
+}
+
+interface OrderDetails {
+  id: string;
+  orderId: string; // Shortened version
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  status: string;
+  createdAt: Date;
+  items: OrderItem[];
+  paymentMethod: string;
+  paymentStatus: string;
+  total: number;
+}
+
+interface UpdateOrderStatusInput {
+  merchantId: string;
+  orderId: string;
+  status: string;
+}
+
 type MerchantWithUser = Merchant & {
   user: {
     email: string;
@@ -697,5 +736,185 @@ export class MerchantService {
         count: item._count.subcategory
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // Get all orders for merchant with optional status filter
+  async getOrders(userId: string, status?: string): Promise<MerchantOrder[]> {
+    const merchant = await this.getMerchantByUserId(userId);
+
+    // Build where clause
+    const whereClause: any = { merchantId: merchant.id };
+    
+    if (status) {
+      whereClause.status = status;
+    }
+
+    // Get orders with customer and items details
+    const orders = await prisma.order.findMany({
+      where: whereClause,
+      include: {
+        customer: {
+          include: {
+            user: {
+              select: {
+                fullName: true,
+                phone: true
+              }
+            }
+          }
+        },
+        address: {
+          select: {
+            street: true,
+            city: true,
+            state: true,
+            country: true
+          }
+        },
+        items: {
+          include: {
+            product: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Transform the data to match the required format
+    return orders.map(order => ({
+      id: order.id,
+      orderId: order.id.substring(0, 8).toUpperCase(), // Shortened version
+      price: Number(order.total),
+      createdAt: order.createdAt,
+      customerName: order.customer.user.fullName,
+      customerPhone: order.customer.user.phone,
+      customerAddress: `${order.address.street}, ${order.address.city}, ${order.address.state}, ${order.address.country}`,
+      status: order.status,
+      items: order.items.map(item => ({
+        id: item.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        price: Number(item.price)
+      }))
+    }));
+  }
+
+  // Get order details by ID
+  async getOrderDetails(userId: string, orderId: string): Promise<OrderDetails> {
+    const merchant = await this.getMerchantByUserId(userId);
+
+    // Get order with all details
+    const order = await prisma.order.findFirst({
+      where: {
+        id: orderId,
+        merchantId: merchant.id
+      },
+      include: {
+        customer: {
+          include: {
+            user: {
+              select: {
+                fullName: true,
+                phone: true
+              }
+            }
+          }
+        },
+        address: {
+          select: {
+            street: true,
+            city: true,
+            state: true,
+            country: true
+          }
+        },
+        items: {
+          include: {
+            product: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!order) {
+      throw new ApiError(404, 'Order not found');
+    }
+
+    return {
+      id: order.id,
+      orderId: order.id.substring(0, 8).toUpperCase(), // Shortened version
+      customerName: order.customer.user.fullName,
+      customerPhone: order.customer.user.phone,
+      customerAddress: `${order.address.street}, ${order.address.city}, ${order.address.state}, ${order.address.country}`,
+      status: order.status,
+      createdAt: order.createdAt,
+      items: order.items.map(item => ({
+        id: item.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        price: Number(item.price)
+      })),
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      total: Number(order.total)
+    };
+  }
+
+  // Update order status
+  async updateOrderStatus(userId: string, orderId: string, status: string): Promise<any> {
+    const merchant = await this.getMerchantByUserId(userId);
+
+    // Verify order belongs to merchant
+    const order = await prisma.order.findFirst({
+      where: {
+        id: orderId,
+        merchantId: merchant.id
+      }
+    });
+
+    if (!order) {
+      throw new ApiError(404, 'Order not found');
+    }
+
+    // Validate status transition
+    const validStatuses = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED', 'REFUNDED'];
+    
+    if (!validStatuses.includes(status)) {
+      throw new ApiError(400, 'Invalid order status');
+    }
+
+    // Update order status
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: { status: status as any }, // Type assertion for Prisma enum
+      include: {
+        customer: {
+          include: {
+            user: {
+              select: {
+                fullName: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return {
+      id: updatedOrder.id,
+      orderId: updatedOrder.id.substring(0, 8).toUpperCase(),
+      status: updatedOrder.status,
+      customerName: updatedOrder.customer.user.fullName
+    };
   }
 } 
