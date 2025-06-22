@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
+import { notificationHelper } from './notification-helper.service';
 
 type PaymentMethod = 'CARD' | 'CASH' | 'MOMO_PAY';
 
@@ -237,21 +238,8 @@ export class OrderService {
         }
       });
 
-      // Create a notification for each order
-      await prisma.notification.create({
-        data: {
-          userId,
-          title: 'Order Placed Successfully',
-          message: `Your order #${order.id.slice(-8)} from ${order.merchant.user.fullName} has been placed successfully. Total: RWF ${total.toFixed(2)}`,
-          type: 'ORDER',
-          metadata: {
-            orderId: order.id,
-            orderTotal: total,
-            merchantName: order.merchant.user.fullName,
-            itemCount: items.length
-          }
-        }
-      });
+      // Use notification helper for order placed notification
+      await notificationHelper.handleOrderPlaced(order.id);
 
       createdOrders.push(order);
     }
@@ -405,6 +393,8 @@ export class OrderService {
       throw new Error('Status update not allowed');
     }
 
+    const oldStatus = order.status;
+
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
       data: { status },
@@ -423,6 +413,9 @@ export class OrderService {
         }
       }
     });
+
+    // Use notification helper for order status change
+    await notificationHelper.handleOrderStatusChange(orderId, oldStatus, status);
 
     return updatedOrder;
   }

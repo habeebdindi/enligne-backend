@@ -11,6 +11,7 @@ import { paymentConfig } from '../config/payment.config';
 import prisma from '../lib/prisma';
 import { PaymentStatus as PrismaPaymentStatus } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
+import { notificationHelper } from './notification-helper.service';
 
 /**
  * Payment Service
@@ -119,7 +120,7 @@ export class PaymentService {
     const response = await provider.processPayment(paymentRequest);
 
     // Create payment record in database
-    await this.createPaymentRecord({
+    const payment = await this.createPaymentRecord({
       userId: order.customer.userId,
       orderId: order.id,
       amount: Number(order.total),
@@ -134,6 +135,9 @@ export class PaymentService {
         previousReference: response.metadata?.previousReference || null
       }
     });
+
+    // Send notification for payment created
+    await notificationHelper.handlePaymentCreated(payment.id);
 
     // Update order payment status
     if (response.success) {
@@ -201,6 +205,8 @@ export class PaymentService {
         return;
       }
 
+      const oldStatus = payment.status;
+
       // Update payment status
       await prisma.payment.update({
         where: { id: payment.id },
@@ -213,6 +219,9 @@ export class PaymentService {
           }
         }
       });
+
+      // Send notification for payment status change
+      await notificationHelper.handlePaymentStatusChange(payment.id, oldStatus, this.mapPaymentStatusToPrisma(status));
 
       // Update related order if payment is successful
       if (status === PaymentStatus.SUCCESSFUL) {
@@ -243,31 +252,6 @@ export class PaymentService {
         where: { id: orderId },
         data: { status: 'CONFIRMED' }
       });
-
-      // Create notification for successful payment
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        include: {
-          customer: { include: { user: true } },
-          merchant: { include: { user: true } }
-        }
-      });
-
-      if (order) {
-        await prisma.notification.create({
-          data: {
-            userId: order.customer.userId,
-            title: 'Payment Successful',
-            message: `Your payment for order #${orderId.slice(-8)} has been confirmed. Your order is now being prepared.`,
-            type: 'PAYMENT',
-            metadata: {
-              orderId,
-              amount: Number(order.total),
-              merchantName: order.merchant.user.fullName
-            }
-          }
-        });
-      }
     }
   }
 
@@ -283,8 +267,8 @@ export class PaymentService {
     status: PrismaPaymentStatus;
     reference: string;
     metadata?: any;
-  }): Promise<void> {
-    await prisma.payment.create({
+  }): Promise<any> {
+    return await prisma.payment.create({
       data: {
         userId: data.userId,
         amount: data.amount,

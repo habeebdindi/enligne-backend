@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { ApiError } from '../middlewares/error.middleware';
+import { notificationHelper } from './notification-helper.service';
 
 const prisma = new PrismaClient();
 
@@ -139,6 +140,9 @@ export class ReviewService {
         }
       }
     });
+
+    // Send notification for new review
+    await notificationHelper.handleNewReview(review.id);
 
     return this.formatReviewResponse(review);
   }

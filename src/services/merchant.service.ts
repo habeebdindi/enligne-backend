@@ -1,6 +1,7 @@
 import { Merchant, Order, Review, Prisma } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { ApiError } from '../middlewares/error.middleware';
+import { notificationHelper } from './notification-helper.service';
 
 // Types
 interface DashboardData {
@@ -1075,6 +1076,8 @@ export class MerchantService {
       throw new ApiError(400, 'Invalid order status');
     }
 
+    const oldStatus = order.status;
+
     // Update order status
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
@@ -1091,6 +1094,9 @@ export class MerchantService {
         }
       }
     });
+
+    // Send notification for order status change
+    await notificationHelper.handleOrderStatusChange(orderId, oldStatus, status as any);
 
     return {
       id: updatedOrder.id,
