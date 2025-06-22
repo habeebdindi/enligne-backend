@@ -18,6 +18,9 @@ import productRoutes from './routes/product.routes';
 import orderRoutes from './routes/order.routes';
 import cartRouter from './routes/cart.routes';
 import reviewRoutes from './routes/review.routes';
+import paymentRoutes from './routes/payment.routes';
+import merchantRoutes from './routes/merchant.routes';
+import categoryRoutes from './routes/category.routes';
 
 // Import middlewares
 import { errorHandler } from './middlewares/error.middleware';
@@ -71,6 +74,9 @@ app.use('/api/v1/cart', cartRouter);
 app.use('/api/v1/offers', offerRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
+app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/merchants', merchantRoutes);
+app.use('/api/v1/categories', categoryRoutes);
 
 // Serve Swagger JSON for external API documentation tools
 app.get('/swagger.json', (req, res) => {
@@ -81,6 +87,11 @@ app.get('/swagger.json', (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
+
+app.post('/print-api', (req, res) => {
+  console.log(req.body);
+  res.status(200).json({ status: 'ok', message: 'API printed' });
 });
 
 // Error handling middleware

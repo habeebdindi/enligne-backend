@@ -123,8 +123,8 @@ export class OrderService {
     return { success: true };
   }
 
-  async createOrder(userId: string, orderData: CreateOrderInput) {
-    const { addressId, paymentMethod, notes, scheduledFor } = orderData;
+  async createOrder(userId: string, orderData: CreateOrderInput & { phoneNumber?: string }) {
+    const { addressId, paymentMethod, notes, scheduledFor, phoneNumber } = orderData;
     
     // Find the customer profile
     const customer = await prisma.customer.findUnique({ where: { userId } });
