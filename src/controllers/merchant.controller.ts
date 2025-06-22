@@ -88,6 +88,42 @@ export const updateOnlineStatus = asyncHandler(async (req: Request, res: Respons
   });
 });
 
+// Update push notification settings
+export const updatePushNotificationSettings = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const { pushNotificationsEnabled } = req.body;
+  
+  const updatedSettings = await merchantService.updatePushNotificationSettings(userId, pushNotificationsEnabled);
+  
+  res.status(200).json({
+    status: 'success',
+    message: `Push notifications ${pushNotificationsEnabled ? 'enabled' : 'disabled'} successfully`,
+    data: {
+      pushNotificationsEnabled: updatedSettings.pushNotificationsEnabled
+    }
+  });
+});
+
+// Update personal details
+export const updatePersonalDetails = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const { email, phone, fullName } = req.body;
+  
+  const updatedDetails = await merchantService.updatePersonalDetails(userId, {
+    email,
+    phone,
+    fullName
+  });
+  
+  res.status(200).json({
+    status: 'success',
+    message: 'Personal details updated successfully',
+    data: {
+      personalDetails: updatedDetails
+    }
+  });
+});
+
 // Get recent orders
 export const getRecentOrders = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
@@ -117,9 +153,9 @@ export const getProductsSummary = asyncHandler(async (req: Request, res: Respons
 // Get all products
 export const getProducts = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
-  const { subcategory } = req.query;
+  const { subcategory, search } = req.query;
   
-  const products = await merchantService.getProducts(userId, subcategory as string);
+  const products = await merchantService.getProducts(userId, subcategory as string, search as string);
   
   res.status(200).json({
     status: 'success',

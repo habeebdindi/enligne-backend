@@ -16,6 +16,7 @@ model User {
   password   String
   role       Role     @default(CUSTOMER)
   isVerified Boolean  @default(false)
+  pushNotificationsEnabled Boolean @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   isActive   Boolean  @default(true)

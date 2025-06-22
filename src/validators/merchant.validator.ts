@@ -2,63 +2,63 @@ import { z } from 'zod';
 import { Request, Response, NextFunction } from 'express';
 import { ApiError } from '../middlewares/error.middleware';
 
-// Validation schemas
-const updateProfileSchema = z.object({
-  businessName: z.string().min(2, "Business name must be at least 2 characters").max(100, "Business name must be less than 100 characters").optional(),
-  description: z.string().max(500, "Description must be less than 500 characters").optional(),
-  logo: z.string().url("Invalid logo URL").optional(),
-  coverImage: z.string().url("Invalid cover image URL").optional(),
-  address: z.string().min(5, "Address must be at least 5 characters").max(200, "Address must be less than 200 characters").optional(),
-  businessPhone: z.string().min(10, "Phone number must be at least 10 characters").max(15, "Phone number must be less than 15 characters").optional(),
-  businessEmail: z.string().email("Invalid email format").optional()
+// Update profile schema
+export const updateProfileSchema = z.object({
+  businessName: z.string().min(2, 'Business name must be at least 2 characters').optional(),
+  description: z.string().min(10, 'Description must be at least 10 characters').optional(),
+  logo: z.string().url('Logo must be a valid URL').optional(),
+  coverImage: z.string().url('Cover image must be a valid URL').optional(),
+  address: z.string().min(5, 'Address must be at least 5 characters').optional(),
+  businessPhone: z.string().min(10, 'Business phone must be at least 10 characters').optional(),
+  businessEmail: z.string().email('Business email must be a valid email').optional()
 });
 
-const updateOnlineStatusSchema = z.object({
+// Update online status schema
+export const updateOnlineStatusSchema = z.object({
   isActive: z.boolean()
 });
 
-const updateOrderStatusSchema = z.object({
-  status: z.enum(['PENDING', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED', 'REFUNDED'], {
-    errorMap: () => ({ message: "Invalid order status" })
-  })
+// Update push notification settings schema
+export const updatePushNotificationSettingsSchema = z.object({
+  pushNotificationsEnabled: z.boolean()
 });
 
-// Validation middleware functions
-export const validateUpdateProfile = (req: Request, res: Response, next: NextFunction) => {
-  try {
-    updateProfileSchema.parse(req.body);
-    next();
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessage = error.errors.map(err => err.message).join(', ');
-      return next(new ApiError(400, `Validation error: ${errorMessage}`));
+// Update personal details schema
+export const updatePersonalDetailsSchema = z.object({
+  email: z.string().email('Invalid email format').optional(),
+  phone: z.string().min(10, 'Phone number must be at least 10 characters').optional(),
+  fullName: z.string().min(3, 'Full name must be at least 3 characters').optional(),
+});
+
+// Update order status schema
+export const updateOrderStatusSchema = z.object({
+  status: z.enum(['PENDING', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED', 'REFUNDED'])
+});
+
+// Validation middleware generator
+export const validate = (schema: z.ZodSchema) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      schema.parse(req.body);
+      next();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errors = error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }));
+        
+        next(new ApiError(400, 'Validation failed', true));
+      } else {
+        next(error);
+      }
     }
-    next(error);
-  }
+  };
 };
 
-export const validateUpdateOnlineStatus = (req: Request, res: Response, next: NextFunction) => {
-  try {
-    updateOnlineStatusSchema.parse(req.body);
-    next();
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessage = error.errors.map(err => err.message).join(', ');
-      return next(new ApiError(400, `Validation error: ${errorMessage}`));
-    }
-    next(error);
-  }
-};
-
-export const validateUpdateOrderStatus = (req: Request, res: Response, next: NextFunction) => {
-  try {
-    updateOrderStatusSchema.parse(req.body);
-    next();
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessage = error.errors.map(err => err.message).join(', ');
-      return next(new ApiError(400, `Validation error: ${errorMessage}`));
-    }
-    next(error);
-  }
-};
+// Export specific validators
+export const validateUpdateProfile = validate(updateProfileSchema);
+export const validateUpdateOnlineStatus = validate(updateOnlineStatusSchema);
+export const validateUpdatePushNotificationSettings = validate(updatePushNotificationSettingsSchema);
+export const validateUpdatePersonalDetails = validate(updatePersonalDetailsSchema);
+export const validateUpdateOrderStatus = validate(updateOrderStatusSchema);

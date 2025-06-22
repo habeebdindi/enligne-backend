@@ -21,6 +21,7 @@ import reviewRoutes from './routes/review.routes';
 import paymentRoutes from './routes/payment.routes';
 import merchantRoutes from './routes/merchant.routes';
 import categoryRoutes from './routes/category.routes';
+import analyticsRoutes from './routes/analytics.routes';
 
 // Import middlewares
 import { errorHandler } from './middlewares/error.middleware';
@@ -77,6 +78,7 @@ app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/merchants', merchantRoutes);
 app.use('/api/v1/categories', categoryRoutes);
+app.use('/api/v1/merchants/analytics', analyticsRoutes);
 
 // Serve Swagger JSON for external API documentation tools
 app.get('/swagger.json', (req, res) => {

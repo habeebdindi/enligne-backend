@@ -4,6 +4,8 @@ import {
   getProfile, 
   updateProfile, 
   updateOnlineStatus,
+  updatePushNotificationSettings,
+  updatePersonalDetails,
   getRecentOrders,
   getProductsSummary,
   getProducts,
@@ -17,7 +19,7 @@ import {
   updateOrderStatus
 } from '../controllers/merchant.controller';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
-import { validateUpdateProfile, validateUpdateOnlineStatus, validateUpdateOrderStatus } from '../validators/merchant.validator';
+import { validateUpdateProfile, validateUpdateOnlineStatus, validateUpdateOrderStatus, validateUpdatePushNotificationSettings, validateUpdatePersonalDetails } from '../validators/merchant.validator';
 import { validateCreateProduct, validateUpdateProduct, validateUpdateProductAvailability } from '../validators/product.validator';
 import { Role } from '@prisma/client';
 
@@ -138,7 +140,7 @@ router.get('/dashboard', getDashboard);
  * /merchants/profile:
  *   get:
  *     summary: Get merchant profile
- *     description: Retrieve detailed merchant profile information
+ *     description: Retrieve merchant profile information including business details, category, reviews, and settings
  *     tags: [Merchants]
  *     security:
  *       - bearerAuth: []
@@ -161,26 +163,73 @@ router.get('/dashboard', getDashboard);
  *                       properties:
  *                         id:
  *                           type: string
+ *                           example: merchant-uuid
  *                         businessName:
  *                           type: string
+ *                           example: SLIMs Business
  *                         description:
  *                           type: string
+ *                           example: Best restaurant in town
  *                         logo:
  *                           type: string
+ *                           example: https://example.com/logo.png
  *                         coverImage:
  *                           type: string
+ *                           example: https://example.com/cover.png
  *                         address:
  *                           type: string
+ *                           example: 123 Main Street, Kigali
  *                         businessPhone:
  *                           type: string
+ *                           example: +250788123456
  *                         businessEmail:
  *                           type: string
+ *                           example: contact@example.com
  *                         rating:
  *                           type: number
+ *                           example: 4.8
  *                         isActive:
  *                           type: boolean
+ *                           example: true
  *                         isVerified:
  *                           type: boolean
+ *                           example: true
+ *                         commissionRate:
+ *                           type: number
+ *                           example: 0.15
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                           example: 2024-01-15T10:30:00Z
+ *                         updatedAt:
+ *                           type: string
+ *                           format: date-time
+ *                           example: 2024-01-15T10:30:00Z
+ *                         user:
+ *                           type: object
+ *                           properties:
+ *                             email:
+ *                               type: string
+ *                               example: merchant@example.com
+ *                             phone:
+ *                               type: string
+ *                               example: +250788123456
+ *                             pushNotificationsEnabled:
+ *                               type: boolean
+ *                               example: true
+ *                               description: Whether push notifications are enabled
+ *                         categoryName:
+ *                           type: string
+ *                           example: Restaurant
+ *                           description: Merchant's business category
+ *                         totalReviews:
+ *                           type: number
+ *                           example: 25
+ *                           description: Total number of reviews received
+ *                         monthsSinceCreation:
+ *                           type: number
+ *                           example: 6
+ *                           description: Number of months since account creation
  *       401:
  *         description: Unauthorized
  *       403:
@@ -312,6 +361,139 @@ router.put('/online-status', validateUpdateOnlineStatus, updateOnlineStatus);
 
 /**
  * @swagger
+ * /merchants/push-notifications:
+ *   put:
+ *     summary: Update push notification settings
+ *     description: Toggle push notifications on or off for the merchant
+ *     tags: [Merchants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - pushNotificationsEnabled
+ *             properties:
+ *               pushNotificationsEnabled:
+ *                 type: boolean
+ *                 example: true
+ *                 description: Set to true to enable push notifications, false to disable
+ *     responses:
+ *       200:
+ *         description: Push notification settings updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Push notifications enabled successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     pushNotificationsEnabled:
+ *                       type: boolean
+ *                       example: true
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not a merchant
+ *       404:
+ *         description: Merchant profile not found
+ */
+router.put('/push-notifications', validateUpdatePushNotificationSettings, updatePushNotificationSettings);
+
+/**
+ * @swagger
+ * /merchants/personal-details:
+ *   put:
+ *     summary: Update merchant personal details
+ *     description: Update merchant's personal information including email, phone, full name, and password
+ *     tags: [Merchants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: newemail@example.com
+ *                 description: New email address (optional)
+ *               phone:
+ *                 type: string
+ *                 example: +250788123456
+ *                 description: New phone number (optional)
+ *               fullName:
+ *                 type: string
+ *                 example: John Doe
+ *                 description: New full name (optional)
+ *     responses:
+ *       200:
+ *         description: Personal details updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Personal details updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     personalDetails:
+ *                       type: object
+ *                       properties:
+ *                         email:
+ *                           type: string
+ *                           example: newemail@example.com
+ *                         phone:
+ *                           type: string
+ *                           example: +250788123456
+ *                         fullName:
+ *                           type: string
+ *                           example: John Doe
+ *       400:
+ *         description: Validation error or current password incorrect
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: Current password is incorrect
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not a merchant
+ *       404:
+ *         description: Merchant profile not found
+ *       409:
+ *         description: Email, phone, or full name already taken
+ */
+router.put('/personal-details', validateUpdatePersonalDetails, updatePersonalDetails);
+
+/**
+ * @swagger
  * /merchants/recent-orders:
  *   get:
  *     summary: Get recent orders for merchant
@@ -420,7 +602,7 @@ router.get('/products/summary', getProductsSummary);
  * /merchants/products:
  *   get:
  *     summary: Get all products for merchant
- *     description: Retrieve all products with sales data and filtering by subcategory
+ *     description: Retrieve all products with sales data and filtering by subcategory and search term
  *     tags: [Merchants]
  *     security:
  *       - bearerAuth: []
@@ -430,6 +612,11 @@ router.get('/products/summary', getProductsSummary);
  *         schema:
  *           type: string
  *         description: Filter products by subcategory name
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search products by name (case-insensitive)
  *     responses:
  *       200:
  *         description: Products retrieved successfully

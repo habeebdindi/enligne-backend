@@ -137,8 +137,34 @@ type MerchantWithUser = Merchant & {
   user: {
     email: string;
     phone: string;
+    pushNotificationsEnabled: boolean;
   };
 };
+
+interface EnhancedMerchantProfile {
+  id: string;
+  businessName: string;
+  description: string | null;
+  logo: string | null;
+  coverImage: string | null;
+  address: string;
+  businessPhone: string;
+  businessEmail: string | null;
+  rating: number;
+  isActive: boolean;
+  isVerified: boolean;
+  commissionRate: number;
+  createdAt: Date;
+  updatedAt: Date;
+  user: {
+    email: string;
+    phone: string;
+    pushNotificationsEnabled: boolean;
+  };
+  categoryName: string;
+  totalReviews: number;
+  monthsSinceCreation: number;
+}
 
 export class MerchantService {
   // Get merchant by user ID
@@ -149,7 +175,8 @@ export class MerchantService {
         user: {
           select: {
             email: true,
-            phone: true
+            phone: true,
+            pushNotificationsEnabled: true
           }
         }
       }
@@ -320,8 +347,60 @@ export class MerchantService {
   }
 
   // Get merchant profile details
-  async getMerchantProfile(userId: string): Promise<MerchantWithUser> {
-    return this.getMerchantByUserId(userId);
+  async getMerchantProfile(userId: string): Promise<EnhancedMerchantProfile> {
+    const merchant = await this.getMerchantByUserId(userId);
+
+    // Get current date for calculations
+    const now = new Date();
+    const createdAt = new Date(merchant.createdAt);
+    const monthsSinceCreation = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 30));
+
+    // Get category name
+    const merchantCategory = await prisma.merchantCategory.findFirst({
+      where: { merchantId: merchant.id },
+      include: {
+        category: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
+
+    const categoryName = merchantCategory?.category.name || 'Uncategorized';
+
+    // Get total reviews count
+    const totalReviews = await prisma.review.count({
+      where: {
+        merchantId: merchant.id,
+        isPublished: true
+      }
+    });
+
+    return {
+      id: merchant.id,
+      businessName: merchant.businessName,
+      description: merchant.description,
+      logo: merchant.logo,
+      coverImage: merchant.coverImage,
+      address: merchant.address,
+      businessPhone: merchant.businessPhone,
+      businessEmail: merchant.businessEmail,
+      rating: merchant.rating,
+      isActive: merchant.isActive,
+      isVerified: merchant.isVerified,
+      commissionRate: merchant.commissionRate,
+      createdAt: merchant.createdAt,
+      updatedAt: merchant.updatedAt,
+      user: {
+        email: merchant.user.email,
+        phone: merchant.user.phone,
+        pushNotificationsEnabled: merchant.user.pushNotificationsEnabled
+      },
+      categoryName,
+      totalReviews,
+      monthsSinceCreation
+    };
   }
 
   // Update merchant profile
@@ -344,6 +423,98 @@ export class MerchantService {
       where: { userId },
       data: updateData as any // Type assertion to bypass complex Prisma types
     });
+  }
+
+  // Update push notification settings
+  async updatePushNotificationSettings(userId: string, pushNotificationsEnabled: boolean): Promise<{ pushNotificationsEnabled: boolean }> {
+    // Get merchant to ensure it exists
+    await this.getMerchantByUserId(userId);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { pushNotificationsEnabled },
+      select: {
+        pushNotificationsEnabled: true
+      }
+    });
+
+    return updatedUser;
+  }
+
+  // Update merchant personal details
+  async updatePersonalDetails(userId: string, data: {
+    email?: string;
+    phone?: string;
+    fullName?: string;
+  }): Promise<{ email: string; phone: string; fullName: string }> {
+    // Get merchant to ensure it exists
+    await this.getMerchantByUserId(userId);
+
+    // Get current user data
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        phone: true,
+        fullName: true
+      }
+    });
+
+    if (!currentUser) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    // Prepare update data
+    const updateData: any = {};
+    
+    if (data.email && data.email !== currentUser.email) {
+      // Check if email is already taken
+      const existingUser = await prisma.user.findUnique({
+        where: { email: data.email }
+      });
+      
+      if (existingUser && existingUser.id !== userId) {
+        throw new ApiError(400, 'Email is already taken');
+      }
+      updateData.email = data.email;
+    }
+
+    if (data.phone && data.phone !== currentUser.phone) {
+      // Check if phone is already taken
+      const existingUser = await prisma.user.findUnique({
+        where: { phone: data.phone }
+      });
+      
+      if (existingUser && existingUser.id !== userId) {
+        throw new ApiError(400, 'Phone number is already taken');
+      }
+      updateData.phone = data.phone;
+    }
+
+    if (data.fullName && data.fullName !== currentUser.fullName) {
+      // Check if fullName is already taken
+      const existingUser = await prisma.user.findUnique({
+        where: { fullName: data.fullName }
+      });
+      
+      if (existingUser && existingUser.id !== userId) {
+        throw new ApiError(400, 'Full name is already taken');
+      }
+      updateData.fullName = data.fullName;
+    }
+
+    // Update user
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        email: true,
+        phone: true,
+        fullName: true
+      }
+    });
+
+    return updatedUser;
   }
 
   // Get recent orders for merchant
@@ -444,7 +615,7 @@ export class MerchantService {
   }
 
   // Get all products for merchant
-  async getProducts(userId: string, subcategory?: string): Promise<MerchantProduct[]> {
+  async getProducts(userId: string, subcategory?: string, search?: string): Promise<MerchantProduct[]> {
     const merchant = await this.getMerchantByUserId(userId);
 
     // Get current month for sales calculation
@@ -455,7 +626,18 @@ export class MerchantService {
     const whereClause: any = { merchantId: merchant.id };
 
     if (subcategory) {
-      whereClause.subcategory = subcategory;
+      whereClause.subcategory = {
+        contains: subcategory,
+        mode: 'insensitive'
+      }
+    }
+
+    // Add search filter if provided
+    if (search) {
+      whereClause.name = {
+        contains: search,
+        mode: 'insensitive' // Case-insensitive search
+      };
     }
 
     // Get products with category
