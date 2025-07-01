@@ -2,6 +2,7 @@ import { Merchant } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { ApiError } from '../middlewares/error.middleware';
 import { notificationHelper } from './notification-helper.service';
+import { platform } from 'os';
 
 // Types
 interface DashboardData {
@@ -979,11 +980,13 @@ export class MerchantService {
       customerPhone: order.customer.user.phone,
       customerAddress: `${order.address.street}, ${order.address.city}, ${order.address.state}, ${order.address.country}`,
       status: order.status,
+      platformFee: Number(order.platformFee),
+      deliveryFee: Number(order.deliveryFee),
       items: order.items.map(item => ({
         id: item.id,
         productName: item.product.name,
         quantity: item.quantity,
-        price: Number(item.price)
+        price: Number(item.price),
       }))
     }));
   }
