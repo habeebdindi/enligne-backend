@@ -122,6 +122,13 @@ export class OrderController {
                 });
             }
 
+            if (!deliveryFee) {
+                return res.status(400).json({ 
+                    status: 'error', 
+                    message: 'Delivery fee is required' 
+                });
+            }
+            
             // Validate payment method
             const validPaymentMethods = ['CARD', 'CASH', 'MOMO_PAY'];
             if (!validPaymentMethods.includes(paymentMethod)) {
