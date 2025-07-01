@@ -1,4 +1,4 @@
-import { Merchant, Order, Review, Prisma } from '@prisma/client';
+import { Merchant } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { ApiError } from '../middlewares/error.middleware';
 import { notificationHelper } from './notification-helper.service';

@@ -40,6 +40,9 @@ const orderController = new OrderController();
  *                 type: string
  *                 format: date-time
  *                 description: Schedule order for specific time (optional)
+ *               deliveryFee:
+ *                 type: number
+ *                 description: Delivery fee for the order (optional)
  *     responses:
  *       201:
  *         description: Order created successfully

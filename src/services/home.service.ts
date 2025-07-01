@@ -281,7 +281,7 @@ export class HomeService {
       orderBy.businessName = 'asc';
     }
 
-    return prisma.merchant.findMany({
+    const merchants = await prisma.merchant.findMany({
       where,
       orderBy,
       include: {
@@ -305,6 +305,8 @@ export class HomeService {
         },
       },
     });
+    
+    return merchants;
   }
 
   // Get merchant details

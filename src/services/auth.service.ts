@@ -105,6 +105,39 @@ export class AuthService {
       });
     }
 
+    // If the user is a merchant, create a merchant profile
+    if (newUser.role === Role.MERCHANT) {
+      await prisma.merchant.create({
+        data: {
+          userId: newUser.id,
+          businessName: userData.fullName, // Use fullName as default businessName
+          address: userData.address,
+          location: { lat: 0, lng: 0 }, // Default location, can be updated later
+          businessPhone: userData.phone,
+          businessEmail: userData.email,
+          openingHours: {
+            monday: { open: '09:00', close: '18:00' },
+            tuesday: { open: '09:00', close: '18:00' },
+            wednesday: { open: '09:00', close: '18:00' },
+            thursday: { open: '09:00', close: '18:00' },
+            friday: { open: '09:00', close: '18:00' },
+            saturday: { open: '09:00', close: '18:00' },
+            sunday: { open: '09:00', close: '18:00' },
+          },
+        }
+      });
+    }
+
+    if (newUser.role === Role.RIDER) {
+      await prisma.rider.create({
+        data: {
+          userId: newUser.id,
+          isAvailable: true,
+          vehicleType: "MOTORCYCLE",
+        }
+      });
+    }
+
     // Create default address for user
     await prisma.address.create({
       data: {

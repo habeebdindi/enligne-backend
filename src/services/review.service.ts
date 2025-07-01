@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import { ApiError } from '../middlewares/error.middleware';
 import { notificationHelper } from './notification-helper.service';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma';
 
 export interface CreateProductReviewData {
   productId: string;

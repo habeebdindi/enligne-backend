@@ -106,7 +106,7 @@ export class OrderController {
     createOrder = async (req: Request, res: Response) => {
         try {
             const userId = req.user?.id;
-            const { addressId, paymentMethod, notes, scheduledFor } = req.body;
+            const { addressId, paymentMethod, notes, scheduledFor, deliveryFee } = req.body;
 
             if (!userId) {
                 return res.status(401).json({ 
@@ -135,7 +135,8 @@ export class OrderController {
                 addressId,
                 paymentMethod: paymentMethod as 'CARD' | 'CASH' | 'MOMO_PAY',
                 notes,
-                scheduledFor: scheduledFor ? new Date(scheduledFor) : undefined
+                scheduledFor: scheduledFor ? new Date(scheduledFor) : undefined,
+                deliveryFee: deliveryFee!
             });
 
             // Check if we created multiple orders (multiple merchants)

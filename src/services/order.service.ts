@@ -9,6 +9,7 @@ interface CreateOrderInput {
   paymentMethod: PaymentMethod;
   notes?: string;
   scheduledFor?: Date;
+  deliveryFee?: number;
 }
 
 export class OrderService {
@@ -125,7 +126,7 @@ export class OrderService {
   }
 
   async createOrder(userId: string, orderData: CreateOrderInput & { phoneNumber?: string }) {
-    const { addressId, paymentMethod, notes, scheduledFor, phoneNumber } = orderData;
+    const { addressId, paymentMethod, notes, scheduledFor, phoneNumber, deliveryFee } = orderData;
     
     // Find the customer profile
     const customer = await prisma.customer.findUnique({ where: { userId } });
@@ -187,10 +188,9 @@ export class OrderService {
         return total + (Number(item.product.salePrice) || Number(item.product.price)) * item.quantity;
       }, 0);
 
-      const deliveryFee = 5.00; // Fixed delivery fee per merchant
-      const platformFee = subtotal * 0.05; // 5% platform fee
-      const tax = subtotal * 0.18; // 18% VAT
-      const total = subtotal + deliveryFee + platformFee + tax;
+      const platformFee = 50;
+      const tax = subtotal * 0.00; // 0% VAT
+      const total = subtotal + deliveryFee! + tax;
 
       // Create order for this merchant
       const order = await prisma.order.create({
@@ -199,7 +199,7 @@ export class OrderService {
           merchantId,
           addressId,
           subtotal,
-          deliveryFee,
+          deliveryFee: deliveryFee!,
           platformFee,
           tax,
           total,
