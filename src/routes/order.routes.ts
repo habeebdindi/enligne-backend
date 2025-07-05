@@ -145,6 +145,93 @@ router.get('/', orderController.getOrders);
 
 /**
  * @swagger
+ * /orders/platform-fee/tiers:
+ *   get:
+ *     summary: Get platform fee tiers
+ *     description: Get all platform fee tiers based on order value
+ *     tags: [Orders]
+ *     responses:
+ *       200:
+ *         description: Platform fee tiers retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     tiers:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           minAmount:
+ *                             type: number
+ *                             example: 0
+ *                           maxAmount:
+ *                             type: number
+ *                             example: 1500
+ *                           fee:
+ *                             type: number
+ *                             example: 50
+ *                           description:
+ *                             type: string
+ *                             example: "Order between 0 and 1,500 RWF: 50 RWF"
+ *                     description:
+ *                       type: string
+ *                       example: "Platform fee is calculated based on order subtotal using these tiers"
+ */
+router.get('/platform-fee/tiers', orderController.getPlatformFeeTiers);
+
+/**
+ * @swagger
+ * /orders/platform-fee/calculate:
+ *   get:
+ *     summary: Calculate platform fee for amount
+ *     description: Calculate platform fee for a specific order amount
+ *     tags: [Orders]
+ *     parameters:
+ *       - in: query
+ *         name: amount
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: Order subtotal amount in RWF
+ *         example: 5000
+ *     responses:
+ *       200:
+ *         description: Platform fee calculated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     subtotal:
+ *                       type: number
+ *                       example: 5000
+ *                     platformFee:
+ *                       type: number
+ *                       example: 150
+ *                     description:
+ *                       type: string
+ *                       example: "Platform fee for 5,000 RWF is 150 RWF"
+ *       400:
+ *         description: Invalid amount parameter
+ */
+router.get('/platform-fee/calculate', orderController.calculatePlatformFeeForAmount);
+
+/**
+ * @swagger
  * /orders/{id}:
  *   get:
  *     summary: Get order by ID

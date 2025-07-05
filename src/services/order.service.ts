@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
 import { notificationHelper } from './notification-helper.service';
+import { calculatePlatformFee } from '../utils/platform-fee.calculator';
 
 type PaymentMethod = 'CARD' | 'CASH' | 'MOMO_PAY';
 
@@ -188,9 +189,9 @@ export class OrderService {
         return total + (Number(item.product.salePrice) || Number(item.product.price)) * item.quantity;
       }, 0);
 
-      const platformFee = 50;
+      const platformFee = calculatePlatformFee(subtotal);
       const tax = subtotal * 0.00; // 0% VAT
-      const total = subtotal + deliveryFee! + tax;
+      const total = subtotal + tax;
 
       // Create order for this merchant
       const order = await prisma.order.create({

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { OrderService } from '../services/order.service';
+import { getAllPlatformFeeTiers, calculatePlatformFee, formatPlatformFeeTier } from '../utils/platform-fee.calculator';
 
 
 export class OrderController {
@@ -266,6 +267,63 @@ export class OrderController {
                 status: 'error', 
                 message: error.message || 'Error fetching order', 
                 error 
+            });
+        }
+    };
+
+    // Get platform fee tiers
+    getPlatformFeeTiers = async (req: Request, res: Response) => {
+        try {
+            const tiers = getAllPlatformFeeTiers();
+            const formattedTiers = tiers.map(tier => ({
+                ...tier,
+                description: formatPlatformFeeTier(tier)
+            }));
+
+            res.status(200).json({
+                status: 'success',
+                data: {
+                    tiers: formattedTiers,
+                    description: 'Platform fee is calculated based on order subtotal using these tiers'
+                }
+            });
+        } catch (error) {
+            res.status(500).json({
+                status: 'error',
+                message: 'Error fetching platform fee tiers',
+                error
+            });
+        }
+    };
+
+    // Calculate platform fee for a given amount
+    calculatePlatformFeeForAmount = async (req: Request, res: Response) => {
+        try {
+            const { amount } = req.query;
+            
+            if (!amount || isNaN(Number(amount))) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Valid amount is required'
+                });
+            }
+
+            const subtotal = Number(amount);
+            const platformFee = calculatePlatformFee(subtotal);
+
+            res.status(200).json({
+                status: 'success',
+                data: {
+                    subtotal,
+                    platformFee,
+                    description: `Platform fee for ${subtotal.toLocaleString('en-US')} RWF is ${platformFee.toLocaleString('en-US')} RWF`
+                }
+            });
+        } catch (error) {
+            res.status(500).json({
+                status: 'error',
+                message: 'Error calculating platform fee',
+                error
             });
         }
     };
