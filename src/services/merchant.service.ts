@@ -961,7 +961,8 @@ export class MerchantService {
           include: {
             product: {
               select: {
-                name: true
+                name: true,
+                images: true
               }
             }
           }
@@ -1026,7 +1027,8 @@ export class MerchantService {
           include: {
             product: {
               select: {
-                name: true
+                name: true,
+                images: true
               }
             }
           }
@@ -1050,7 +1052,8 @@ export class MerchantService {
         id: item.id,
         productName: item.product.name,
         quantity: item.quantity,
-        price: Number(item.price)
+        price: Number(item.price),
+        images: item.product.images
       })),
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
