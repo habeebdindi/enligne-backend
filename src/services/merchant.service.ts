@@ -127,6 +127,8 @@ interface OrderDetails {
   paymentMethod: string;
   paymentStatus: string;
   total: number;
+  platformFee?: number;
+  deliveryFee?: number;
 }
 
 interface UpdateOrderStatusInput {
@@ -1052,7 +1054,9 @@ export class MerchantService {
       })),
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
-      total: Number(order.total)
+      total: Number(order.total),
+      platformFee: Number(order.platformFee),
+      deliveryFee: Number(order.deliveryFee)
     };
   }
 

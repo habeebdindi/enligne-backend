@@ -94,62 +94,74 @@ export class PaymentService {
 
   /**
    * Process MoMo payment
+   * 
+   * TEMPORARY: MoMo integration is paused.
+   * Payment records are created with PENDING status for manual confirmation by admins.
    */
   private async processMoMoPayment(order: any, phoneNumber: string): Promise<PaymentResponse> {
-    const provider = this.providers.get(PaymentProviderType.MOMO_PAY);
-    if (!provider) {
-      throw new Error('MoMo payment provider not available');
-    }
+    console.log(`Creating payment record for manual confirmation - Order: ${order.id}, Phone: ${phoneNumber}`);
 
     // Always generate a new unique reference for each payment attempt
     const paymentReference = uuidv4();
 
-    const paymentRequest: PaymentRequest = {
-      amount: Number(order.total),
-      currency: paymentConfig.defaultCurrency,
-      phoneNumber,
-      reference: paymentReference, // Use new UUID here
-      description: `Payment for order #${order.id.slice(-8)}`,
-      metadata: {
-        orderId: order.id,
-        customerId: order.customerId,
-        merchantId: order.merchantId
-      }
-    };
+    // Basic phone number validation
+    if (!phoneNumber || phoneNumber.trim().length === 0) {
+      throw new Error('Phone number is required for MoMo payments');
+    }
 
-    const response = await provider.processPayment(paymentRequest);
+    // Validate phone number format (basic validation)
+    const phoneRegex = /^(\+?25[0-9]|0)[0-9]{8,9}$/;
+    if (!phoneRegex.test(phoneNumber.replace(/\s/g, ''))) {
+      throw new Error('Invalid phone number format. Please use format: +250XXXXXXXXX or 078XXXXXXXX');
+    }
 
-    // Create payment record in database
+    // Create payment record in database with PENDING status
     const payment = await this.createPaymentRecord({
       userId: order.customer.userId,
       orderId: order.id,
       amount: Number(order.total),
       currency: paymentConfig.defaultCurrency,
       method: 'Mobile Money',
-      status: this.mapPaymentStatusToPrisma(response.status),
-      reference: paymentReference, // Use the same new UUID here
+      status: 'PENDING', // Always PENDING for manual confirmation
+      reference: paymentReference,
       metadata: {
-        ...response.metadata,
         orderId: order.id,
+        customerId: order.customerId,
+        merchantId: order.merchantId,
+        phoneNumber: phoneNumber,
         attemptAt: new Date().toISOString(),
-        previousReference: response.metadata?.previousReference || null
+        note: 'MoMo integration temporarily paused - awaiting manual confirmation',
+        requiresManualConfirmation: true
       }
     });
 
     // Send notification for payment created
     await notificationHelper.handlePaymentCreated(payment.id);
 
-    // Update order payment status
-    if (response.success) {
-      await prisma.order.update({
-        where: { id: order.id },
-        data: { 
-          paymentStatus: response.status === PaymentStatus.SUCCESSFUL ? 'PAID' : 'PENDING'
-        }
-      });
-    }
+    // Update order payment status to PENDING
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { 
+        paymentStatus: 'PENDING'
+      }
+    });
 
-    return response;
+    // Return successful response indicating manual confirmation needed
+    return {
+      success: true,
+      transactionId: paymentReference,
+      reference: paymentReference,
+      status: PaymentStatus.PENDING,
+      message: 'Payment request created successfully. Your payment will be confirmed manually by our team. You will receive a notification once confirmed.',
+      metadata: {
+        orderId: order.id,
+        phoneNumber: phoneNumber,
+        amount: Number(order.total),
+        currency: paymentConfig.defaultCurrency,
+        requiresManualConfirmation: true,
+        createdAt: new Date().toISOString()
+      }
+    };
   }
 
   /**
@@ -174,14 +186,72 @@ export class PaymentService {
 
   /**
    * Verify payment status
+   * 
+   * TEMPORARY: Returns payment status from database instead of calling external provider
+   * since MoMo integration is paused.
    */
   async verifyPayment(transactionId: string, paymentMethod: PaymentProviderType): Promise<PaymentVerificationResult> {
-    const provider = this.providers.get(paymentMethod);
-    if (!provider) {
-      throw new Error(`Payment provider ${paymentMethod} not available`);
-    }
+    console.log(`Verifying payment status for transaction: ${transactionId}`);
 
-    return await provider.verifyPayment(transactionId);
+    try {
+      // Find payment record in database
+      const payment = await prisma.payment.findUnique({
+        where: { reference: transactionId }
+      });
+
+      if (!payment) {
+        return {
+          isValid: false,
+          status: PaymentStatus.FAILED,
+          amount: 0,
+          currency: paymentConfig.defaultCurrency,
+          transactionId,
+          reference: transactionId,
+          failureReason: 'Payment record not found'
+        };
+      }
+
+      // Map database status to PaymentStatus enum
+      let paymentStatus: PaymentStatus;
+      switch (payment.status) {
+        case 'PAID':
+          paymentStatus = PaymentStatus.SUCCESSFUL;
+          break;
+        case 'FAILED':
+          paymentStatus = PaymentStatus.FAILED;
+          break;
+        case 'PENDING':
+        default:
+          paymentStatus = PaymentStatus.PENDING;
+          break;
+      }
+
+      const metadata = payment.metadata as any;
+
+      return {
+        isValid: true,
+        status: paymentStatus,
+        amount: Number(payment.amount),
+        currency: payment.currency,
+        transactionId,
+        reference: payment.reference,
+        completedAt: payment.status === 'PAID' ? payment.updatedAt : undefined,
+        failureReason: payment.status === 'FAILED' ? metadata?.failureReason : undefined
+      };
+
+    } catch (error) {
+      console.error(`Error verifying payment ${transactionId}:`, error);
+
+      return {
+        isValid: false,
+        status: PaymentStatus.FAILED,
+        amount: 0,
+        currency: paymentConfig.defaultCurrency,
+        transactionId,
+        reference: transactionId,
+        failureReason: error instanceof Error ? error.message : 'Verification failed'
+      };
+    }
   }
 
   /**
@@ -459,5 +529,77 @@ export class PaymentService {
     }
 
     return results;
+  }
+
+  /**
+   * Admin method: Manually confirm or reject a payment
+   * 
+   * TEMPORARY: For manual payment confirmation while MoMo integration is paused
+   */
+  async adminConfirmPayment(
+    paymentId: string, 
+    status: 'PAID' | 'FAILED', 
+    reason?: string
+  ): Promise<any> {
+    try {
+      console.log(`Admin confirming payment ${paymentId} with status ${status}`);
+
+      // Find the payment
+      const payment = await prisma.payment.findUnique({
+        where: { id: paymentId }
+      });
+
+      if (!payment) {
+        throw new Error('Payment not found');
+      }
+
+      if (payment.status !== 'PENDING') {
+        throw new Error(`Payment is already ${payment.status}. Only PENDING payments can be confirmed.`);
+      }
+
+      const oldStatus = payment.status;
+      const newStatus = status;
+
+      // Update payment status
+      const updatedPayment = await prisma.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: newStatus,
+          metadata: {
+            ...payment.metadata as any,
+            adminConfirmedAt: new Date().toISOString(),
+            adminConfirmedBy: 'admin', // TODO: Get actual admin ID from request
+            confirmationReason: reason || 'Manual confirmation',
+            previousStatus: oldStatus
+          }
+        }
+      });
+
+      // Send notification for payment status change
+      await notificationHelper.handlePaymentStatusChange(paymentId, oldStatus, newStatus);
+
+      // Update related order if payment is confirmed as paid
+      if (status === 'PAID') {
+        const metadata = payment.metadata as any;
+        if (metadata?.orderId) {
+          await this.updateOrderPaymentStatus(metadata.orderId, 'PAID');
+          console.log(`Order ${metadata.orderId} payment status updated to PAID`);
+        }
+      }
+
+      return {
+        id: updatedPayment.id,
+        status: updatedPayment.status,
+        reference: updatedPayment.reference,
+        amount: Number(updatedPayment.amount),
+        currency: updatedPayment.currency,
+        confirmedAt: new Date().toISOString(),
+        reason: reason || 'Manual confirmation'
+      };
+
+    } catch (error) {
+      console.error(`Error confirming payment ${paymentId}:`, error);
+      throw error;
+    }
   }
 } 

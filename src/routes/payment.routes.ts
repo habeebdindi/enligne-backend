@@ -228,6 +228,8 @@ const paymentController = new PaymentController();
  *       Receives payment status updates from MTN MoMo API.
  *       This endpoint is called by MTN when a payment status changes.
  *       No authentication required as this is an external webhook.
+ *       
+ *       NOTE: MoMo integration is temporarily paused. This endpoint is kept for future use.
  *     requestBody:
  *       required: true
  *       content:
@@ -275,8 +277,12 @@ router.use(authenticate);
  *       - Payments
  *     summary: Process a new payment
  *     description: |
- *       Initiates a new payment request through MTN MoMo API.
- *       The payment will be in PENDING status initially and updated via webhook.
+ *       Creates a new payment request for manual confirmation by admins.
+ *       
+ *       TEMPORARY: MoMo integration is paused. Payments are created with PENDING status 
+ *       and require manual confirmation by administrators.
+ *       
+ *       The payment will remain in PENDING status until manually confirmed.
  *       Requires authentication.
  *     security:
  *       - bearerAuth: []
@@ -669,5 +675,119 @@ router.get('/methods', paymentController.getPaymentMethods);
  */
 // Admin/testing endpoints
 router.get('/test-providers', paymentController.testProviders);
+
+/**
+ * @swagger
+ * /payments/admin/confirm/{paymentId}:
+ *   patch:
+ *     tags:
+ *       - Payments
+ *     summary: Admin endpoint to manually confirm payments
+ *     description: |
+ *       TEMPORARY: Allows administrators to manually confirm or reject payments 
+ *       while MoMo integration is paused. Only PENDING payments can be confirmed.
+ *       
+ *       This endpoint updates the payment status and triggers related order updates.
+ *       Requires authentication (admin role in production).
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paymentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the payment to confirm
+ *         example: "550e8400-e29b-41d4-a716-446655440000"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [PAID, FAILED]
+ *                 description: New payment status
+ *                 example: "PAID"
+ *               reason:
+ *                 type: string
+ *                 description: Optional reason for the status change
+ *                 example: "Manual confirmation after verifying payment receipt"
+ *     responses:
+ *       200:
+ *         description: Payment status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 message:
+ *                   type: string
+ *                   example: "Payment confirmed successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: Payment ID
+ *                     status:
+ *                       type: string
+ *                       description: Updated payment status
+ *                     reference:
+ *                       type: string
+ *                       description: Payment reference
+ *                     amount:
+ *                       type: number
+ *                       description: Payment amount
+ *                     currency:
+ *                       type: string
+ *                       description: Payment currency
+ *                     confirmedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Confirmation timestamp
+ *                     reason:
+ *                       type: string
+ *                       description: Confirmation reason
+ *       400:
+ *         description: Invalid request or payment cannot be confirmed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized - invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - admin access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Payment not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.patch('/admin/confirm/:paymentId', paymentController.adminConfirmPayment);
 
 export default router;

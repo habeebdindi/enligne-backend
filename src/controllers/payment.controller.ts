@@ -327,4 +327,56 @@ export class PaymentController {
       });
     }
   };
+
+  /**
+   * Admin endpoint: Manually confirm a payment
+   * PATCH /api/payments/admin/confirm/:paymentId
+   * 
+   * TEMPORARY: For manual payment confirmation while MoMo integration is paused
+   */
+  adminConfirmPayment = async (req: Request, res: Response) => {
+    try {
+      const { paymentId } = req.params;
+      const { status, reason } = req.body;
+
+      if (!paymentId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Payment ID is required'
+        });
+      }
+
+      if (!status || !['PAID', 'FAILED'].includes(status)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Status must be either PAID or FAILED'
+        });
+      }
+
+      // TODO: Add admin role check
+      // const userRole = req.user?.role;
+      // if (userRole !== 'admin') {
+      //   return res.status(403).json({
+      //     status: 'error',
+      //     message: 'Admin access required'
+      //   });
+      // }
+
+      const result = await this.paymentService.adminConfirmPayment(paymentId, status, reason);
+
+      res.json({
+        status: 'success',
+        message: `Payment ${status === 'PAID' ? 'confirmed' : 'marked as failed'} successfully`,
+        data: result
+      });
+
+    } catch (error) {
+      console.error('Admin payment confirmation error:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Payment confirmation failed',
+        error: process.env.NODE_ENV === 'development' ? error : undefined
+      });
+    }
+  };
 } 
