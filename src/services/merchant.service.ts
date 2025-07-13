@@ -1072,6 +1072,10 @@ export class MerchantService {
       where: {
         id: orderId,
         merchantId: merchant.id
+      },
+      include: {
+        address: true,
+        merchant: true
       }
     });
 
@@ -1087,6 +1091,42 @@ export class MerchantService {
     }
 
     const oldStatus = order.status;
+
+    // Create delivery record when order becomes ready for pickup
+    if (status === 'READY_FOR_PICKUP' && oldStatus !== 'READY_FOR_PICKUP') {
+      // Check if delivery record already exists
+      const existingDelivery = await prisma.delivery.findUnique({
+        where: { orderId }
+      });
+
+      if (!existingDelivery) {
+        // Calculate distance between merchant and customer (simplified - using Euclidean distance)
+        const merchantLocation = order.merchant.location as { lat: number; lng: number };
+        const customerLocation = order.address.location as { lat: number; lng: number };
+        
+        const distance = this.calculateDistance(
+          merchantLocation.lat, 
+          merchantLocation.lng,
+          customerLocation.lat, 
+          customerLocation.lng
+        );
+
+        // Generate unique tracking code
+        const trackingCode = this.generateTrackingCode();
+
+        // Create delivery record
+        await prisma.delivery.create({
+          data: {
+            orderId,
+            status: 'PENDING',
+            pickupLocation: merchantLocation,
+            dropoffLocation: customerLocation,
+            distance,
+            trackingCode
+          }
+        });
+      }
+    }
 
     // Update order status
     const updatedOrder = await prisma.order.update({
@@ -1114,5 +1154,29 @@ export class MerchantService {
       status: updatedOrder.status,
       customerName: updatedOrder.customer.user.fullName
     };
+  }
+
+  /**
+   * Calculate distance between two points using Haversine formula
+   */
+  private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round((R * c) * 100) / 100; // Round to 2 decimal places
+  }
+
+  /**
+   * Generate unique tracking code
+   */
+  private generateTrackingCode(): string {
+    const timestamp = Date.now().toString(36);
+    const randomString = Math.random().toString(36).substring(2, 8);
+    return `TRK${timestamp}${randomString}`.toUpperCase();
   }
 } 
