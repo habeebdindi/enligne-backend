@@ -1100,16 +1100,13 @@ export class MerchantService {
       });
 
       if (!existingDelivery) {
-        // Calculate distance between merchant and customer (simplified - using Euclidean distance)
-        const merchantLocation = order.merchant.location as { lat: number; lng: number };
-        const customerLocation = order.address.location as { lat: number; lng: number };
+        // Calculate distance from delivery fee (more reliable than GPS coordinates)
+        const deliveryFee = Number(order.deliveryFee);
+        const distance = this.calculateDistanceFromDeliveryFee(deliveryFee);
         
-        const distance = this.calculateDistance(
-          merchantLocation.lat, 
-          merchantLocation.lng,
-          customerLocation.lat, 
-          customerLocation.lng
-        );
+        // Use merchant and customer locations (or default locations if not available)
+        const merchantLocation = order.merchant.location 
+        const customerLocation = order.address.location 
 
         // Generate unique tracking code
         const trackingCode = this.generateTrackingCode();
@@ -1119,8 +1116,8 @@ export class MerchantService {
           data: {
             orderId,
             status: 'PENDING',
-            pickupLocation: merchantLocation,
-            dropoffLocation: customerLocation,
+            pickupLocation: {merchantLocation} ,
+            dropoffLocation: {customerLocation} ,
             distance,
             trackingCode
           }
@@ -1157,7 +1154,28 @@ export class MerchantService {
   }
 
   /**
+   * Calculate approximate distance from delivery fee
+   * Based on pricing tiers:
+   * 0-3 km: 600 FRW
+   * 4-6 km: 800 FRW  
+   * 7-10 km: 1000 FRW
+   * 11-15 km: 1500 FRW
+   * 16-20 km: 2000 FRW
+   * 21+ km: 2500 FRW
+   */
+  private calculateDistanceFromDeliveryFee(deliveryFee: number): number {
+    // Use midpoint of each range for distance estimation
+    if (deliveryFee <= 600) return 1.5; // 0-3 km → 1.5 km (midpoint)
+    if (deliveryFee <= 800) return 5.0; // 4-6 km → 5.0 km (midpoint)
+    if (deliveryFee <= 1000) return 8.5; // 7-10 km → 8.5 km (midpoint)
+    if (deliveryFee <= 1500) return 13.0; // 11-15 km → 13.0 km (midpoint)
+    if (deliveryFee <= 2000) return 18.0; // 16-20 km → 18.0 km (midpoint)
+    return 25.0; // 21+ km → 25.0 km (estimated)
+  }
+
+  /**
    * Calculate distance between two points using Haversine formula
+   * @deprecated Use calculateDistanceFromDeliveryFee instead
    */
   private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
     const R = 6371; // Earth's radius in kilometers
