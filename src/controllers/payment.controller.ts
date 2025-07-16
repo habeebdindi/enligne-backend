@@ -405,29 +405,6 @@ export class PaymentController {
     }
   };
 
-  /**
-   * Test payment providers (admin only)
-   * GET /api/payments/test-providers
-   */
-  testProviders = async (req: Request, res: Response) => {
-    try {
-      // TODO: Add admin role check
-      const results = await this.paymentService.testProviders();
-
-      res.json({
-        status: 'success',
-        data: results
-      });
-
-    } catch (error) {
-      console.error('Test providers error:', error);
-      res.status(500).json({
-        status: 'error',
-        message: 'Failed to test payment providers',
-        error: process.env.NODE_ENV === 'development' ? error : undefined
-      });
-    }
-  };
 
   /**
    * Get payment methods available to user
