@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PaymentService } from '../services/payment.service';
-import { PaymentStatus } from '../types/payment.types';
+import { DisbursementService } from '../services/disbursement.service';
+import { PaymentStatus, DisbursementStatus } from '../types/payment.types';
 
 /**
  * Payment Controller
@@ -14,9 +15,11 @@ import { PaymentStatus } from '../types/payment.types';
 
 export class PaymentController {
   private paymentService: PaymentService;
+  private disbursementService: DisbursementService;
 
   constructor() {
     this.paymentService = new PaymentService();
+    this.disbursementService = new DisbursementService();
   }
 
   /**
@@ -121,6 +124,147 @@ export class PaymentController {
       res.status(500).json({
         status: 'error',
         message: 'Webhook processing failed'
+      });
+    }
+  };
+
+  /**
+   * Handle Paypack payment webhook
+   * POST /api/payments/webhook/paypack
+   */
+  handlePaypackWebhook = async (req: Request, res: Response) => {
+    try {
+      console.log('🔔 Received Paypack webhook:', JSON.stringify(req.body, null, 2));
+
+      // Paypack sends nested webhook structure
+      const webhookData = req.body;
+      
+      // Extract transaction data from the nested structure
+      const transactionData = webhookData.data || webhookData;
+      const { ref, status, kind, client: phone, amount, currency, fee, created_at, processed_at } = transactionData;
+
+      if (!ref) {
+        console.error('❌ Missing ref in Paypack webhook:', webhookData);
+        return res.status(400).json({
+          status: 'error',
+          message: 'Reference ID is required'
+        });
+      }
+
+      console.log(`📋 Processing Paypack webhook for ref: ${ref}, status: ${status}, kind: ${kind}`);
+
+      // Handle CASHIN transactions (payments)
+      if (kind === 'CASHIN') {
+        console.log(`💰 Processing CASHIN transaction for payment: ${ref}`);
+        
+        // Map Paypack status to our internal payment status
+        let paymentStatus: PaymentStatus;
+        switch (status?.toLowerCase()) {
+          case 'successful':
+          case 'success':
+          case 'completed':
+            paymentStatus = PaymentStatus.SUCCESSFUL;
+            break;
+          case 'failed':
+          case 'failure':
+          case 'error':
+            paymentStatus = PaymentStatus.FAILED;
+            break;
+          default:
+            paymentStatus = PaymentStatus.PENDING;
+        }
+
+        console.log(`🔄 Mapped Paypack status "${status}" to payment status "${paymentStatus}"`);
+
+        await this.paymentService.handlePaymentWebhook(
+          ref,
+          paymentStatus,
+          {
+            paypackRef: ref,
+            kind,
+            phone,
+            amount,
+            currency,
+            fee,
+            created_at,
+            processed_at,
+            webhookEventId: webhookData.event_id,
+            webhookKind: webhookData.kind,
+            webhookReceivedAt: new Date().toISOString()
+          }
+        );
+
+        console.log(`✅ Successfully processed CASHIN webhook for ref: ${ref}`);
+      }
+      // Handle CASHOUT transactions (disbursements)
+      else if (kind === 'CASHOUT') {
+        console.log(`💸 Processing CASHOUT transaction for disbursement: ${ref}`);
+        
+        // Map Paypack status to our internal disbursement status
+        let disbursementStatus: DisbursementStatus;
+        switch (status?.toLowerCase()) {
+          case 'successful':
+          case 'success':
+          case 'completed':
+            disbursementStatus = DisbursementStatus.SUCCESSFUL;
+            break;
+          case 'failed':
+          case 'failure':
+          case 'error':
+            disbursementStatus = DisbursementStatus.FAILED;
+            break;
+          case 'pending':
+          case 'processing':
+            disbursementStatus = DisbursementStatus.PROCESSING;
+            break;
+          default:
+            disbursementStatus = DisbursementStatus.PROCESSING;
+        }
+
+        console.log(`🔄 Mapped Paypack status "${status}" to disbursement status "${disbursementStatus}"`);
+
+        // Update disbursement status using Paypack reference
+        await this.disbursementService.handleDisbursementWebhook(
+          ref,
+          disbursementStatus,
+          {
+            paypackRef: ref,
+            kind,
+            phone,
+            amount,
+            currency,
+            fee,
+            created_at,
+            processed_at,
+            webhookEventId: webhookData.event_id,
+            webhookKind: webhookData.kind,
+            webhookReceivedAt: new Date().toISOString()
+          }
+        );
+
+        console.log(`✅ Successfully processed CASHOUT webhook for ref: ${ref}`);
+      }
+      else {
+        console.log(`⏭️  Skipping ${kind} transaction - unknown transaction type`);
+        return res.status(200).json({
+          status: 'success',
+          message: 'Webhook acknowledged - unknown transaction type'
+        });
+      }
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Webhook processed successfully'
+      });
+
+    } catch (error) {
+      console.error('💥 Paypack webhook processing error:', error);
+      
+      // Still return 200 to prevent Paypack from retrying
+      // Log the error but acknowledge receipt
+      res.status(200).json({
+        status: 'error', 
+        message: 'Webhook processing failed but acknowledged'
       });
     }
   };
@@ -300,6 +444,17 @@ export class PaymentController {
           currencies: ['RWF'],
           icon: 'momo-icon',
           isActive: true
+        },
+        {
+          id: 'PAYPACK',
+          name: 'Paypack',
+          description: 'Pay with MTN Mobile Money or Airtel Money through Paypack',
+          requiresPhone: true,
+          currencies: ['RWF'],
+          icon: 'paypack-icon',
+          isActive: true,
+          supportedNetworks: ['MTN Mobile Money', 'Airtel Money'],
+          features: ['instant_payments', 'payment_verification', 'refunds']
         },
         {
           id: 'CASH',

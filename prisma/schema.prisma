@@ -160,6 +160,7 @@ enum PaymentMethod {
   CARD
   CASH
   MOMO_PAY
+  PAYPACK
 }
 
 // Explore options (e.g., malls, markets)
@@ -433,4 +434,35 @@ model Notification {
   @@index([type])
   @@index([isRead])
   @@index([createdAt])
+}
+
+// Disbursement model for tracking outgoing payments (payouts, refunds, etc.)
+model Disbursement {
+  id              String   @id @default(uuid())
+  type            String // DisbursementType: MERCHANT_PAYOUT, RIDER_PAYOUT, CUSTOMER_REFUND, etc.
+  amount          Decimal  @db.Decimal(10, 2)
+  currency        String   @default("RWF")
+  phoneNumber     String // Recipient's phone number
+  recipientName   String // Name of the recipient
+  reference       String   @unique // Unique reference for tracking
+  description     String // Description of the disbursement
+  status          String   @default("PENDING") // DisbursementStatus enum
+  transactionId   String? // External provider transaction ID (e.g., Paypack ref)
+  scheduledFor    DateTime? // When the disbursement should be processed
+  requiresApproval Boolean  @default(false)
+  processedAt     DateTime? // When processing started
+  completedAt     DateTime? // When successfully completed
+  failureReason   String? // Reason for failure if status is FAILED
+  metadata        Json? // Additional metadata (batch info, provider response, etc.)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([phoneNumber])
+  @@index([reference])
+  @@index([createdAt])
+  @@index([scheduledFor])
+  @@index([processedAt])
+  @@index([completedAt])
 }

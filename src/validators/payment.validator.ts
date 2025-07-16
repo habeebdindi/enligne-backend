@@ -114,7 +114,7 @@ export const createOrderWithPaymentSchema = z.object({
 
 // Payment method selection validation
 export const paymentMethodSchema = z.object({
-  method: z.enum(['MOMO_PAY', 'CARD', 'CASH']),
+  method: z.enum(['MOMO_PAY', 'CARD', 'CASH', 'PAYPACK']),
   phoneNumber: z.optional(phoneNumberSchema),
   saveMethod: z.optional(z.boolean().default(false))
 });

@@ -4,9 +4,13 @@ import {
   PaymentVerificationResult, 
   PaymentStatus,
   IPaymentProvider,
-  PaymentProviderType
+  PaymentProviderType,
+  DisbursementType,
+  DisbursementRequest
 } from '../types/payment.types';
 import { MoMoPaymentProvider } from './payment/momo-payment.provider';
+import { PaypackPaymentProvider } from './payment/paypack-payment.provider';
+import { DisbursementService } from './disbursement.service';
 import { paymentConfig } from '../config/payment.config';
 import prisma from '../lib/prisma';
 import { PaymentStatus as PrismaPaymentStatus } from '@prisma/client';
@@ -27,9 +31,11 @@ import { notificationHelper } from './notification-helper.service';
 
 export class PaymentService {
   private providers: Map<PaymentProviderType, IPaymentProvider>;
+  private disbursementService: DisbursementService;
 
   constructor() {
     this.providers = new Map();
+    this.disbursementService = new DisbursementService();
     this.initializeProviders();
   }
 
@@ -39,6 +45,9 @@ export class PaymentService {
   private initializeProviders(): void {
     // Register MoMo provider
     this.providers.set(PaymentProviderType.MOMO_PAY, new MoMoPaymentProvider());
+    
+    // Register Paypack provider
+    this.providers.set(PaymentProviderType.PAYPACK, new PaypackPaymentProvider());
     
     // Future providers can be added here:
     // this.providers.set(PaymentProviderType.CARD, new CardPaymentProvider());
@@ -50,7 +59,7 @@ export class PaymentService {
   async processOrderPayment(
     orderId: string, 
     phoneNumber: string, 
-    paymentMethod: 'MOMO_PAY' | 'CARD' | 'CASH'
+    paymentMethod: 'MOMO_PAY' | 'PAYPACK' | 'CARD' | 'CASH'
   ): Promise<PaymentResponse> {
     try {
       console.log(`Processing payment for order ${orderId} using ${paymentMethod}`);
@@ -82,6 +91,10 @@ export class PaymentService {
 
       if (paymentMethod === 'MOMO_PAY') {
         return this.processMoMoPayment(order, phoneNumber);
+      }
+
+      if (paymentMethod === 'PAYPACK') {
+        return this.processPaypackPayment(order, phoneNumber);
       }
 
       throw new Error(`Payment method ${paymentMethod} not yet implemented`);
@@ -162,6 +175,134 @@ export class PaymentService {
         createdAt: new Date().toISOString()
       }
     };
+  }
+
+  /**
+   * Process Paypack payment
+   */
+  private async processPaypackPayment(order: any, phoneNumber: string): Promise<PaymentResponse> {
+    try {
+      console.log(`Processing Paypack payment - Order: ${order.id}, Phone: ${phoneNumber}`);
+
+      // Generate a unique reference for this payment attempt
+      const paymentReference = uuidv4();
+
+      // Basic phone number validation
+      if (!phoneNumber || phoneNumber.trim().length === 0) {
+        throw new Error('Phone number is required for Paypack payments');
+      }
+
+      // Create initial payment record with our reference
+      const payment = await this.createPaymentRecord({
+        userId: order.customer.userId,
+        orderId: order.id,
+        amount: Number(order.total), // Use total that already includes all fees
+        currency: paymentConfig.defaultCurrency,
+        method: 'Paypack',
+        status: 'PENDING',
+        reference: paymentReference,
+        metadata: {
+          orderId: order.id,
+          customerId: order.customerId,
+          merchantId: order.merchantId,
+          phoneNumber: phoneNumber,
+          attemptAt: new Date().toISOString()
+        }
+      });
+
+      // Get the Paypack provider
+      const paypackProvider = this.providers.get(PaymentProviderType.PAYPACK);
+      if (!paypackProvider) {
+        throw new Error('Paypack payment provider not available');
+      }
+
+      // Prepare payment request
+      const paymentRequest: PaymentRequest = {
+        amount: Number(order.total), // Use total that already includes all fees
+        currency: paymentConfig.defaultCurrency,
+        phoneNumber: phoneNumber,
+        reference: paymentReference,
+        description: `Payment for order #${order.id.slice(-8)}`,
+        metadata: {
+          orderId: order.id,
+          customerId: order.customerId,
+          merchantId: order.merchantId
+        }
+      };
+      console.log('paymentRequest: ', paymentRequest);
+
+      // Process payment with Paypack
+      const paypackResponse = await paypackProvider.processPayment(paymentRequest);
+
+      // Update payment record with Paypack reference for webhook lookups
+      if (paypackResponse.success && paypackResponse.transactionId) {
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            reference: paypackResponse.transactionId, // Use Paypack's ref for webhook lookups
+            metadata: {
+              ...payment.metadata as any,
+              ...paypackResponse.metadata,
+              internalReference: paymentReference, // Keep our original reference
+              paypackRef: paypackResponse.transactionId,
+              paypackStatus: paypackResponse.status
+            }
+          }
+        });
+        
+        console.log(`Payment record updated with Paypack reference: ${paypackResponse.transactionId}`);
+      }
+
+      // Send notification for payment created
+      await notificationHelper.handlePaymentCreated(payment.id);
+
+      // Update order payment status
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { 
+          paymentStatus: this.mapPaymentStatusToPrisma(paypackResponse.status)
+        }
+      });
+
+      return {
+        success: paypackResponse.success,
+        transactionId: paypackResponse.transactionId,
+        reference: paymentReference, // Return our internal reference to the client
+        status: paypackResponse.status,
+        message: paypackResponse.message,
+        metadata: {
+          ...paypackResponse.metadata,
+          orderId: order.id,
+          phoneNumber: phoneNumber,
+          amount: Number(order.total),
+          currency: paymentConfig.defaultCurrency,
+          createdAt: new Date().toISOString(),
+          paypackRef: paypackResponse.transactionId
+        }
+      };
+
+    } catch (error) {
+      console.error('Paypack payment processing failed:', error);
+      
+      // Create failed payment record
+      await this.createPaymentRecord({
+        userId: order.customer.userId,
+        orderId: order.id,
+        amount: Number(order.total),
+        currency: paymentConfig.defaultCurrency,
+        method: 'Paypack',
+        status: 'FAILED',
+        reference: uuidv4(),
+        metadata: {
+          orderId: order.id,
+          phoneNumber: phoneNumber,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          attemptAt: new Date().toISOString()
+        }
+      });
+
+      throw error;
+    }
   }
 
   /**
@@ -298,6 +439,9 @@ export class PaymentService {
         const orderMetadata = payment.metadata as any;
         if (orderMetadata?.orderId) {
           await this.updateOrderPaymentStatus(orderMetadata.orderId, 'PAID');
+          
+          // Create automatic disbursement to merchant
+          await this.createMerchantDisbursement(orderMetadata.orderId, Number(payment.amount));
         }
       }
 
@@ -322,6 +466,79 @@ export class PaymentService {
         where: { id: orderId },
         data: { status: 'CONFIRMED' }
       });
+    }
+  }
+
+  /**
+   * Create automatic disbursement to merchant for successful payment
+   */
+  private async createMerchantDisbursement(orderId: string, paymentAmount: number): Promise<void> {
+    try {
+      console.log(`💰 Creating automatic merchant disbursement for order: ${orderId}`);
+
+      // Get order details with merchant information
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          merchant: {
+            include: {
+              user: true
+            }
+          }
+        }
+      });
+
+      if (!order) {
+        console.error(`❌ Order ${orderId} not found for disbursement`);
+        return;
+      }
+
+      if (!order.merchant) {
+        console.error(`❌ Merchant not found for order ${orderId}`);
+        return;
+      }
+
+      // Calculate merchant payout amount (payment amount minus platform fee)
+      const platformFee = Number(order.platformFee);
+      const deliveryFee = Number(order.deliveryFee);
+      const subtotal = Number(order.subtotal);
+      const merchantPayoutAmount = subtotal; // Merchant gets the subtotal (product revenue)
+
+      if (merchantPayoutAmount <= 0) {
+        console.warn(`⚠️ Merchant payout amount is ${merchantPayoutAmount} for order ${orderId}, skipping disbursement`);
+        return;
+      }
+
+      // Create disbursement request
+      const disbursementRequest: DisbursementRequest = {
+        type: DisbursementType.MERCHANT_PAYOUT,
+        amount: merchantPayoutAmount,
+        currency: 'RWF',
+        phoneNumber: order.merchant.user.phone || order.merchant.businessPhone,
+        recipientName: order.merchant.businessName,
+        description: `Merchant payout for order ${orderId}`,
+        reference: `MERCHANT_PAYOUT_${orderId}_${Date.now()}`,
+        requiresApproval: false, // Auto-approve merchant payouts for successful payments
+        metadata: {
+          orderId: orderId,
+          merchantId: order.merchant.id,
+          subtotal: subtotal,
+          platformFee: platformFee,
+          deliveryFee: deliveryFee,
+          autoGenerated: true,
+          reason: 'Automatic payout for successful payment'
+        }
+      };
+
+      // Create the disbursement
+      const result = await this.disbursementService.createDisbursement(disbursementRequest, 'system');
+
+      console.log(`✅ Created automatic disbursement ${result.disbursementId} for merchant ${order.merchant.businessName} (${merchantPayoutAmount} RWF)`);
+
+    } catch (error) {
+      console.error(`❌ Error creating merchant disbursement for order ${orderId}:`, error);
+      // Don't throw error to prevent payment webhook from failing
+      // Merchant disbursement can be created manually if automatic fails
     }
   }
 
@@ -457,6 +674,42 @@ export class PaymentService {
       return response;
     }
 
+    if (payment.method === 'Paypack') {
+      // Pass the new reference and track the previous one in metadata
+      const response = await this.providers.get(PaymentProviderType.PAYPACK)!.processPayment({
+        amount: Number(order.total),
+        currency: paymentConfig.defaultCurrency,
+        phoneNumber: metadata.phoneNumber,
+        reference: newReference,
+        description: `Payment for order #${order.id.slice(-8)} (Retry)`,
+        metadata: {
+          ...metadata,
+          previousReference: payment.reference,
+          retry: true
+        }
+      });
+
+      // Create a new payment record for the retry
+      await this.createPaymentRecord({
+        userId: order.customer.userId,
+        orderId: order.id,
+        amount: Number(order.total),
+        currency: paymentConfig.defaultCurrency,
+        method: 'Paypack',
+        status: this.mapPaymentStatusToPrisma(response.status),
+        reference: newReference,
+        metadata: {
+          ...response.metadata,
+          orderId: order.id,
+          attemptAt: new Date().toISOString(),
+          previousReference: payment.reference,
+          retry: true
+        }
+      });
+
+      return response;
+    }
+
     throw new Error(`Retry not supported for payment method: ${payment.method}`);
   }
 
@@ -511,24 +764,6 @@ export class PaymentService {
       successRate: totalPayments > 0 ? (successfulPayments / totalPayments) * 100 : 0,
       recentPayments
     };
-  }
-
-  /**
-   * Test payment provider connectivity
-   */
-  async testProviders(): Promise<Record<string, boolean>> {
-    const results: Record<string, boolean> = {};
-
-    for (const [providerType, provider] of this.providers) {
-      try {
-        results[providerType] = await provider.testConnection();
-      } catch (error) {
-        console.error(`Provider ${providerType} test failed:`, error);
-        results[providerType] = false;
-      }
-    }
-
-    return results;
   }
 
   /**

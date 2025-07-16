@@ -131,7 +131,7 @@ export class OrderController {
             }
             
             // Validate payment method
-            const validPaymentMethods = ['CARD', 'CASH', 'MOMO_PAY'];
+            const validPaymentMethods = ['CARD', 'CASH', 'MOMO_PAY', 'PAYPACK'];
             if (!validPaymentMethods.includes(paymentMethod)) {
                 return res.status(400).json({ 
                     status: 'error', 
@@ -141,7 +141,7 @@ export class OrderController {
 
             const result = await this.orderService.createOrder(userId, {
                 addressId,
-                paymentMethod: paymentMethod as 'CARD' | 'CASH' | 'MOMO_PAY',
+                paymentMethod,
                 notes,
                 scheduledFor: scheduledFor ? new Date(scheduledFor) : undefined,
                 deliveryFee: deliveryFee!

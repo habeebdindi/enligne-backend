@@ -191,7 +191,7 @@ export class OrderService {
 
       const platformFee = calculatePlatformFee(subtotal);
       const tax = subtotal * 0.00; // 0% VAT
-      const total = subtotal + tax;
+      const total = subtotal + platformFee + tax - 0; // Include all fees in total
 
       // Create order for this merchant
       const order = await prisma.order.create({

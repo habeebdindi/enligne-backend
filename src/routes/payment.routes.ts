@@ -13,32 +13,14 @@ import { authenticate } from '../middlewares/auth.middleware';
  *     PaymentRequest:
  *       type: object
  *       required:
- *         - amount
- *         - currency
- *         - payerPhoneNumber
- *         - description
+ *         - paymentMethod
+ *         - orderId
+ *         - phoneNumber
  *       properties:
- *         amount:
- *           type: number
- *           description: Payment amount
- *           example: 1000
- *         currency:
- *           type: string
- *           description: Currency code
- *           example: "RWF"
  *         phoneNumber:
  *           type: string
  *           description: Payer's phone number in international format
  *           example: "+256781234567"
- *         description:
- *           type: string
- *           description: Payment description
- *           example: "Payment for services"
- *         callbackUrl:
- *           type: string
- *           format: uri
- *           description: Optional callback URL for payment status updates
- *           example: "https://api.example.com/payments/callback"
  *         paymentMethod:
  *           type: string
  *           description: Payment method
@@ -47,10 +29,6 @@ import { authenticate } from '../middlewares/auth.middleware';
  *           type: string
  *           description: Order ID
  *           example: "awec-312f-412f-412f-412f"
- *         userId:
- *           type: string
- *           description: User ID
- * 
  *     PaymentResponse:
  *       type: object
  *       properties:
@@ -219,6 +197,89 @@ const paymentController = new PaymentController();
 
 /**
  * @swagger
+ * /api/payments/webhook/paypack:
+ *   post:
+ *     tags:
+ *       - Webhooks
+ *     summary: Handle Paypack payment webhook
+ *     description: |
+ *       Receives payment status updates from Paypack API.
+ *       This endpoint is called by Paypack when a payment status changes.
+ *       No authentication required as this is an external webhook.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - ref
+ *               - status
+ *               - kind
+ *               - phone
+ *               - amount
+ *               - currency
+ *             properties:
+ *               ref:
+ *                 type: string
+ *                 description: Paypack transaction reference
+ *                 example: "TXN-123456789"
+ *               status:
+ *                 type: string
+ *                 enum: [pending, successful, failed]
+ *                 description: Transaction status
+ *               kind:
+ *                 type: string
+ *                 enum: [CASHIN, CASHOUT]
+ *                 description: Transaction type
+ *               phone:
+ *                 type: string
+ *                 description: Phone number
+ *                 example: "250781234567"
+ *               amount:
+ *                 type: number
+ *                 description: Transaction amount
+ *                 example: 1000
+ *               currency:
+ *                 type: string
+ *                 description: Currency code
+ *                 example: "RWF"
+ *               fee:
+ *                 type: number
+ *                 description: Transaction fee
+ *                 example: 50
+ *               created_at:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Transaction creation timestamp
+ *     responses:
+ *       200:
+ *         description: Webhook processed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 message:
+ *                   type: string
+ *                   example: "Webhook processed successfully"
+ *       400:
+ *         description: Invalid webhook payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * @swagger
  * /api/payments/webhook/momo:
  *   post:
  *     tags:
@@ -263,8 +324,9 @@ const paymentController = new PaymentController();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-// Public webhook endpoint (no auth required for MoMo callbacks)
+// Public webhook endpoints (no auth required for external callbacks)
 router.post('/webhook/momo', paymentController.handleMoMoWebhook);
+router.post('/webhook/paypack', paymentController.handlePaypackWebhook);
 
 // Protected routes requiring authentication
 router.use(authenticate);
@@ -613,68 +675,6 @@ router.post('/retry/:paymentId', paymentController.retryPayment);
  */
 // Payment methods and configuration
 router.get('/methods', paymentController.getPaymentMethods);
-
-/**
- * @swagger
- * /payments/test-providers:
- *   get:
- *     tags:
- *       - Payments
- *     summary: Test payment providers connectivity
- *     description: |
- *       Tests connectivity and health status of all configured payment providers.
- *       Useful for monitoring and debugging payment infrastructure.
- *       Requires authentication. Intended for admin/testing purposes.
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Provider test results retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 providers:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       name:
- *                         type: string
- *                         description: Provider name
- *                       status:
- *                         type: string
- *                         enum: [healthy, unhealthy, error]
- *                         description: Provider health status
- *                       responseTime:
- *                         type: number
- *                         description: Response time in milliseconds
- *                       lastChecked:
- *                         type: string
- *                         format: date-time
- *                         description: Last health check timestamp
- *                       error:
- *                         type: string
- *                         description: Error message if unhealthy
- *       401:
- *         description: Unauthorized - invalid or missing token
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       500:
- *         description: Internal server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-// Admin/testing endpoints
-router.get('/test-providers', paymentController.testProviders);
 
 /**
  * @swagger

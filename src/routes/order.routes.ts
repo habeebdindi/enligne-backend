@@ -31,7 +31,7 @@ const orderController = new OrderController();
  *                 description: ID of the delivery address
  *               paymentMethod:
  *                 type: string
- *                 enum: [CARD, CASH, MOMO_PAY]
+ *                 enum: [CARD, CASH, MOMO_PAY, PAYPACK]
  *                 description: Payment method for the order
  *               notes:
  *                 type: string
