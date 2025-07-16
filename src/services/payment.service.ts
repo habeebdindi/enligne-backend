@@ -502,7 +502,7 @@ export class PaymentService {
       const platformFee = Number(order.platformFee);
       const deliveryFee = Number(order.deliveryFee);
       const subtotal = Number(order.subtotal);
-      const merchantPayoutAmount = subtotal; // Merchant gets the subtotal (product revenue)
+      const merchantPayoutAmount = subtotal - platformFee; // Merchant gets the subtotal (product revenue)
 
       if (merchantPayoutAmount <= 0) {
         console.warn(`⚠️ Merchant payout amount is ${merchantPayoutAmount} for order ${orderId}, skipping disbursement`);
