@@ -35,6 +35,9 @@ const app = express();
 const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.1.0/swagger-ui.min.css";
 const PORT = process.env.PORT || 5000;
 
+// Set trust proxy
+app.set('trust proxy', 1);
+
 // Security middlewares
 app.use(helmet({
   contentSecurityPolicy: false
